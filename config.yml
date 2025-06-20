@@ -1,0 +1,57 @@
+# Trading Bot Configuration
+
+# Database settings
+database:
+  host: "localhost"
+  port: 27017
+  username: "admin"
+  password: "password"
+  database_name: "trading_bot"
+
+# Binance API (optional - leave empty for public data only)
+binance:
+  api_key: "ciWc4FX683d3a2w0mPvyU297cY1KpISWpo8jKxpPfaXdRDbe0TTk8IibqpHOvoPl"
+  api_secret: "F5ScbP57i2HigFIgGhyWORlaEaepx9YWeCOUBLhM5q1tYGzkgX1N4NDzeGVvHrIT"
+
+# Default trading settings
+trading:
+  default_timeframe: "15m"
+  default_balance: 1000.0
+  default_fee_rate: 0.001
+
+# Backtesting settings
+backtesting:
+  default_test_period_days: 90
+  min_data_points: 100
+
+# Optimization settings
+optimization:
+  population_size: 50
+  generations: 20
+  mutation_rate: 0.1
+  crossover_rate: 0.8
+
+# Data settings
+data:
+  download_days: 30
+  indicator_update_hours: 24
+  cleanup_old_data_days: 365
+
+# Popular symbols for bulk operations
+symbols:
+  popular:
+    - "BTCUSDT"
+    - "ETHUSDT" 
+    - "BNBUSDT"
+    - "ADAUSDT"
+    - "SOLUSDT"
+    - "XRPUSDT"
+    - "DOTUSDT"
+    - "DOGEUSDT"
+    - "AVAXUSDT"
+    - "MATICUSDT"
+    - "LINKUSDT"
+    - "LTCUSDT"
+    - "UNIUSDT"
+    - "ATOMUSDT"
+    - "FTMUSDT"
