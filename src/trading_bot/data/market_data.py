@@ -147,7 +147,7 @@ class MarketDataManager:
             df['bb_lower'] = bb.bollinger_lband()
             
             # Volume indicators
-            df['volume_sma'] = ta.volume.volume_sma(df['volume'], window=20)
+            df['volume_sma'] = df['volume'].rolling(window=20).mean()
             df['volume_ratio'] = df['volume'] / df['volume_sma']
             
         except Exception as e:

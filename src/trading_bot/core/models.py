@@ -11,20 +11,20 @@ from .enums import TradeStatus, OrderSide, TimeFrame
 
 
 class Position(BaseModel):
-    """Trading position model - cleaned up from TradePosition.py"""
+    """Trading position model - matches original TradePosition.py exactly"""
     
     symbol: str
     open_time: datetime
-    open_price: Decimal
-    amount_invested: Decimal
-    amount_bought: Decimal
-    highest_since_purchase: Decimal
+    open_price: float
+    amount_invested: float
+    amount_bought: float
+    highest_since_purchase: float
     buy_reason: str
-    fee_rate: Decimal
-    stop_loss: Decimal
+    fee_rate: float
+    stop_loss: float
     status: TradeStatus = TradeStatus.OPEN
     close_time: Optional[datetime] = None
-    close_price: Optional[Decimal] = None
+    close_price: Optional[float] = None
     sell_reason: Optional[str] = None
     
     @property
@@ -37,35 +37,41 @@ class Position(BaseModel):
         return (end_time - self.open_time).total_seconds() / 3600
     
     @property
-    def current_price(self) -> Decimal:
+    def current_price(self) -> float:
         return self.close_price if self.close_price is not None else self.highest_since_purchase
     
     @property
-    def sell_return(self) -> Decimal:
-        """Calculate return accounting for fees"""
-        return self._calculate_sell_return(self.open_price, self.current_price, self.fee_rate)
+    def sell_return(self) -> float:
+        """Calculate return accounting for fees - EXACT original formula"""
+        return self.calculate_sell_return(self.open_price, self.current_price, self.fee_rate)
     
     @property
-    def profit(self) -> Decimal:
+    def profit(self) -> float:
         return self.sell_return * self.amount_invested
     
     @property
-    def liquidation_value(self) -> Decimal:
+    def liquidation_value(self) -> float:
         return (self.sell_return + 1) * self.amount_invested
     
+    @property
+    def return_percentage(self) -> float:
+        """Return as percentage"""
+        return self.sell_return * 100
+    
     @staticmethod
-    def _calculate_sell_return(start_price: Decimal, end_price: Decimal, fee_rate: Decimal) -> Decimal:
-        """Calculate return accounting for buy and sell fees"""
+    def calculate_sell_return(start_price: float, end_price: float, fee_rate: float) -> float:
+        """EXACT original fee calculation formula"""
         return ((end_price / start_price) * ((1 - fee_rate) / (1 + fee_rate))) - 1
     
-    def update(self, current_price: Decimal) -> None:
-        """Update position with new price data"""
+    def update(self, new_row):
+        """Update position with new market data - match original interface"""
+        current_price = new_row["close"]
         self.close_price = current_price
         if current_price > self.highest_since_purchase:
             self.highest_since_purchase = current_price
     
-    def close_position(self, close_time: datetime, close_price: Decimal, reason: str) -> Decimal:
-        """Close the position and return liquidation value"""
+    def close_position(self, close_time: datetime, close_price: float, reason: str) -> float:
+        """Close the position and return liquidation value - match original interface"""
         self.close_time = close_time
         self.close_price = close_price
         self.sell_reason = reason
@@ -145,12 +151,13 @@ class BacktestResult(BaseModel):
     
     symbol: str
     strategy_name: str
+    config: BacktestConfig
     
     # Trade statistics
     total_trades: int
     winning_trades: int
     losing_trades: int
-    total_profit: Decimal
+    total_profit: Decimal  # Total profit in currency
     win_rate: float
     
     # Performance metrics
@@ -158,7 +165,7 @@ class BacktestResult(BaseModel):
     average_loss: Decimal
     largest_win: Decimal
     largest_loss: Decimal
-    average_holding_time: float
+    average_holding_time: float  # In hours
     
     # Risk metrics
     sharpe_ratio: float
@@ -166,8 +173,19 @@ class BacktestResult(BaseModel):
     max_drawdown: float
     profit_factor: float
     
-    # All positions
-    trades: List[Position]
+    # Portfolio metrics
+    initial_balance: Decimal
+    final_balance: Decimal
+    total_return: Decimal
+    total_return_pct: float
+    
+    # All trades
+    trades: List[Position]  # Renamed from positions to trades
+    
+    # Execution metadata
+    start_time: datetime
+    end_time: datetime
+    execution_time_seconds: float
 
 
 class StrategySignal(BaseModel):
