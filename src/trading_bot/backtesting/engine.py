@@ -3,14 +3,14 @@ Backtesting engine for trading strategies.
 Fixed to match the original working TradingBot interface.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional
 import pandas as pd
 import numpy as np
 
-from ..core.models import BacktestConfig, BacktestResult, Position
-from ..core.enums import TradeStatus
+from ..core.models import BacktestConfig, BacktestResult, Position, TradingConfig
+from ..core.enums import TradeStatus, OrderSide
 from ..strategies.base import BaseStrategy
 from ..data.market_data import MarketDataManager
 
@@ -35,10 +35,13 @@ class BacktestEngine:
         
     def run(self) -> Dict[str, BacktestResult]:
         """Run backtest for all symbols in config."""
+        print(f"🚀 Starting backtest for {len(self.config.symbols)} symbols...")
+        print(f"   Period: {self.config.test_start_date.date()} to {(self.config.test_end_date or datetime.now()).date()}")
+        
         results = {}
         
         for symbol in self.config.symbols:
-            print(f"📊 Backtesting {symbol}...")
+            print(f"\n📊 Backtesting {symbol}...")
             result = self.backtest_symbol(symbol)
             results[symbol] = result
             
@@ -47,9 +50,96 @@ class BacktestEngine:
         
         return results
     
+    def validate_data_availability(self) -> bool:
+        """Check if required data is available for all symbols."""
+        missing_symbols = []
+        
+        # Define what period we actually need
+        required_start = self.config.since_date
+        required_end = self.config.test_end_date or datetime.now()
+        
+        for symbol in self.config.symbols:
+            existing_range = self.data_manager.storage.get_date_range(symbol, self.config.timeframe)
+            
+            if not existing_range:
+                missing_symbols.append(f"{symbol} (no data)")
+                continue
+                
+            existing_start, existing_end = existing_range
+            has_enough_start = existing_start <= required_start
+            has_enough_end = existing_end >= required_end
+            
+            if not (has_enough_start and has_enough_end):
+                missing_symbols.append(f"{symbol} (need {required_start.date()} to {required_end.date()}, have {existing_start.date()} to {existing_end.date()})")
+        
+        if missing_symbols:
+            print(f"⚠️  Missing data for: {', '.join(missing_symbols)}")
+            return False
+        else:
+            print(f"✅ All required data available for {len(self.config.symbols)} symbols")
+            return True
+    
+    def ensure_data_available(self, symbol: str):
+        """Ensure required data is available, download only if missing."""
+        # Define what date range we actually need
+        required_start = self.config.since_date
+        required_end = self.config.test_end_date or datetime.now()
+        
+        # Check what data we already have
+        existing_range = self.data_manager.storage.get_date_range(symbol, self.config.timeframe)
+        
+        if existing_range:
+            existing_start, existing_end = existing_range
+            
+            # Check if existing data covers our required period
+            has_enough_start = existing_start <= required_start
+            has_enough_end = existing_end >= required_end
+            
+            if has_enough_start and has_enough_end:
+                print(f"✅ {symbol} data already covers required period ({existing_start.date()} to {existing_end.date()})")
+                return
+            else:
+                print(f"📥 {symbol} data insufficient for required period...")
+                print(f"   Need: {required_start.date()} to {required_end.date()}")
+                print(f"   Have: {existing_start.date()} to {existing_end.date()}")
+        else:
+            print(f"📥 {symbol} data not found, downloading...")
+        
+        # Calculate how much data to download to cover the required period
+        # Add buffer for indicators (50 days should be enough for most indicators)
+        download_start = required_start - timedelta(days=50)
+        download_end = max(required_end, datetime.now())
+        total_days = (download_end - download_start).days + 10  # Extra buffer
+        
+        # Download data using the standard method but with explicit date range
+        try:
+            # Use the binance client directly for more control
+            candles = self.data_manager.binance.fetch_historical_data(
+                symbol=symbol,
+                timeframe=self.config.timeframe,
+                days=total_days,
+                end_date=download_end
+            )
+            
+            if candles:
+                count = self.data_manager.storage.store_candles(candles)
+                print(f"✅ Downloaded {count} candles for {symbol}")
+                
+                # Update indicators for the symbol
+                self.data_manager.update_indicators(symbol, self.config.timeframe, download_start)
+            else:
+                print(f"⚠️  No data returned from Binance for {symbol}")
+                
+        except Exception as e:
+            print(f"⚠️  Warning: Could not download data for {symbol}: {e}")
+            print(f"   Proceeding with existing data...")
+    
     def backtest_symbol(self, symbol: str) -> BacktestResult:
         """Run backtest for a single symbol."""
         start_time = datetime.now()
+        
+        # Ensure data is available - download only if missing
+        self.ensure_data_available(symbol)
         
         # Get market data
         df = self.data_manager.get_data_for_backtest(
