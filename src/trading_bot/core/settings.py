@@ -3,20 +3,20 @@ Configuration settings for Trading Bot.
 Only contains global infrastructure settings, not business logic parameters.
 """
 
-from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Global infrastructure settings only."""
-    
+
     # Application
     app_name: str = "Trading Bot"
     version: str = "0.1.0"
     environment: str = Field(default="development", env="ENVIRONMENT")
     debug: bool = Field(default=True, env="DEBUG")
-    
+
     # MongoDB Configuration
     mongodb_url: str = Field(
         default="mongodb://admin:password@localhost:27017/trading_bot?authSource=admin",
@@ -28,20 +28,20 @@ class Settings(BaseSettings):
     mongodb_password: str = Field(default="password", env="MONGODB_PASSWORD")
     mongodb_database: str = Field(default="trading_bot", env="MONGODB_DATABASE")
     mongodb_auth_source: str = Field(default="admin", env="MONGODB_AUTH_SOURCE")
-    
+
     # Binance API Configuration
-    binance_api_key: Optional[str] = Field(default=None, env="BINANCE_API_KEY")
-    binance_api_secret: Optional[str] = Field(default=None, env="BINANCE_API_SECRET")
+    binance_api_key: str | None = Field(default=None, env="BINANCE_API_KEY")
+    binance_api_secret: str | None = Field(default=None, env="BINANCE_API_SECRET")
     binance_testnet: bool = Field(default=False, env="BINANCE_TESTNET")
-    
+
     # Rate limiting & timeouts
     api_rate_limit_per_second: int = Field(default=10, env="API_RATE_LIMIT_PER_SECOND")
     api_request_timeout: int = Field(default=30, env="API_REQUEST_TIMEOUT")
-    
+
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
-    log_file: Optional[str] = Field(default=None, env="LOG_FILE")
-    
+    log_file: str | None = Field(default=None, env="LOG_FILE")
+
     class Config:
         """Pydantic config."""
         env_file = ".env"
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
 
 # Singleton instance
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
