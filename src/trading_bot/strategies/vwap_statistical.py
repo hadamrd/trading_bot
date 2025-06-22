@@ -98,7 +98,7 @@ class VWAPStatisticalStrategy(BaseStrategy):
         except Exception as e:
             print(f"Error calculating VWAP indicators: {e}")
 
-        return df.fillna(method='ffill').fillna(0)
+        return df.ffill().fillna(0)
 
     def _init_strategy(self,
                       # VWAP parameters

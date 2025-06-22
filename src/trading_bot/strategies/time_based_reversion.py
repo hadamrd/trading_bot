@@ -105,7 +105,7 @@ class TimeBasedReversionStrategy(BaseStrategy):
         except Exception as e:
             print(f"Error calculating time-based indicators: {e}")
         
-        return df.fillna(method='ffill').fillna(0)
+        return df.ffill().fillna(0)
 
     def _init_strategy(self,
                       # Mean reversion parameters

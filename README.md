@@ -221,4 +221,4 @@ poetry run python -c "from trading_bot.data.storage import MongoStorage; print('
 
 ## 📄 License
 
-[Your License Here]
+[MIT]

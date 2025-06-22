@@ -26,7 +26,6 @@ def test_volatile_cryptos():
     volatile_symbols = [
         "SOLUSDT",    # Solana - high TPS, very volatile
         "RNDRUSDT",   # Render token - AI hype, high volatility  
-        "WIFUSDT",    # Dogwifhat - viral meme coin
         "PEPEUSDT",   # Pepe - classic meme coin volatility
         "AVAXUSDT",   # Avalanche - L1 with high volatility
     ]

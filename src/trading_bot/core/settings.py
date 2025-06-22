@@ -1,15 +1,14 @@
 """
 Configuration settings for Trading Bot.
-Only contains global infrastructure settings, not business logic parameters.
+Updated to support both MongoDB and ClickHouse.
 """
-
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Global infrastructure settings only."""
+    """Global infrastructure settings."""
 
     # Application
     app_name: str = "Trading Bot"
@@ -17,7 +16,10 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", env="ENVIRONMENT")
     debug: bool = Field(default=True, env="DEBUG")
 
-    # MongoDB Configuration
+    # Database selection
+    database_type: str = Field(default="clickhouse", env="DATABASE_TYPE")  # "mongodb" or "clickhouse"
+
+    # MongoDB Configuration (legacy)
     mongodb_url: str = Field(
         default="mongodb://admin:password@localhost:27017/trading_bot?authSource=admin",
         env="MONGODB_URL"
@@ -28,6 +30,13 @@ class Settings(BaseSettings):
     mongodb_password: str = Field(default="password", env="MONGODB_PASSWORD")
     mongodb_database: str = Field(default="trading_bot", env="MONGODB_DATABASE")
     mongodb_auth_source: str = Field(default="admin", env="MONGODB_AUTH_SOURCE")
+
+    # ClickHouse Configuration (preferred)
+    clickhouse_host: str = Field(default="localhost", env="CLICKHOUSE_HOST")
+    clickhouse_port: int = Field(default=8123, env="CLICKHOUSE_PORT")  # HTTP port
+    clickhouse_username: str = Field(default="default", env="CLICKHOUSE_USERNAME")
+    clickhouse_password: str = Field(default="", env="CLICKHOUSE_PASSWORD")
+    clickhouse_database: str = Field(default="trading_bot", env="CLICKHOUSE_DATABASE")
 
     # Binance API Configuration
     binance_api_key: str | None = Field(default=None, env="BINANCE_API_KEY")

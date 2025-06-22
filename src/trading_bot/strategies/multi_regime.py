@@ -97,7 +97,7 @@ class MultiRegimeStrategy(BaseStrategy):
         except Exception as e:
             print(f"Error calculating indicators: {e}")
 
-        return df.fillna(method='ffill').fillna(0)
+        return df.ffill().fillna(0)
 
     def _init_strategy(self,
                       # Regime detection parameters

@@ -61,7 +61,7 @@ class VWAPBounceStrategy(BaseStrategy):
             df["volume_ratio"] = df["volume"] / df["volume_ma"]
 
             # Fill NaN values with method='ffill' for the first few rows
-            df = df.fillna(method='ffill').fillna(0)
+            df = df.ffill().fillna(0)
 
         except Exception as e:
             print(f"Error calculating indicators: {e}")
