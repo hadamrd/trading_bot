@@ -5,7 +5,7 @@ Fixed to match the original working TradingBot interface.
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-
+import logging
 import numpy as np
 import pandas as pd
 
@@ -14,6 +14,7 @@ from ..core.models import BacktestConfig, BacktestResult, Position
 from ..data.market_data import MarketDataManager
 from ..strategies.base import BaseStrategy
 
+logger = logging.getLogger(__name__)
 
 class BacktestEngine:
     """
@@ -35,13 +36,13 @@ class BacktestEngine:
 
     def run(self) -> dict[str, BacktestResult]:
         """Run backtest for all symbols in config."""
-        print(f"🚀 Starting backtest for {len(self.config.symbols)} symbols...")
-        print(f"   Period: {self.config.test_start_date.date()} to {(self.config.test_end_date or datetime.now()).date()}")
+        logger.info(f"🚀 Starting backtest for {len(self.config.symbols)} symbols...")
+        logger.info(f"   Period: {self.config.test_start_date.date()} to {(self.config.test_end_date or datetime.now()).date()}")
 
         results = {}
 
         for symbol in self.config.symbols:
-            print(f"\n📊 Backtesting {symbol}...")
+            logger.info(f"\n📊 Backtesting {symbol}...")
             result = self.backtest_symbol(symbol)
             results[symbol] = result
 
@@ -73,10 +74,10 @@ class BacktestEngine:
                 missing_symbols.append(f"{symbol} (need {required_start.date()} to {required_end.date()}, have {existing_start.date()} to {existing_end.date()})")
 
         if missing_symbols:
-            print(f"⚠️  Missing data for: {', '.join(missing_symbols)}")
+            logger.info(f"⚠️  Missing data for: {', '.join(missing_symbols)}")
             return False
         else:
-            print(f"✅ All required data available for {len(self.config.symbols)} symbols")
+            logger.info(f"✅ All required data available for {len(self.config.symbols)} symbols")
             return True
 
     def ensure_data_available(self, symbol: str):
@@ -96,14 +97,14 @@ class BacktestEngine:
             has_enough_end = existing_end >= required_end
 
             if has_enough_start and has_enough_end:
-                print(f"✅ {symbol} data already covers required period ({existing_start.date()} to {existing_end.date()})")
+                logger.info(f"✅ {symbol} data already covers required period ({existing_start.date()} to {existing_end.date()})")
                 return
             else:
-                print(f"📥 {symbol} data insufficient for required period...")
-                print(f"   Need: {required_start.date()} to {required_end.date()}")
-                print(f"   Have: {existing_start.date()} to {existing_end.date()}")
+                logger.info(f"📥 {symbol} data insufficient for required period...")
+                logger.info(f"   Need: {required_start.date()} to {required_end.date()}")
+                logger.info(f"   Have: {existing_start.date()} to {existing_end.date()}")
         else:
-            print(f"📥 {symbol} data not found, downloading...")
+            logger.info(f"📥 {symbol} data not found, downloading...")
 
         # Calculate how much data to download to cover the required period
         # Add buffer for indicators (50 days should be enough for most indicators)
@@ -123,16 +124,16 @@ class BacktestEngine:
 
             if candles:
                 count = self.data_manager.storage.store_candles(candles)
-                print(f"✅ Downloaded {count} candles for {symbol}")
+                logger.info(f"✅ Downloaded {count} candles for {symbol}")
 
                 # Update indicators for the symbol
                 self.data_manager.update_indicators(symbol, self.config.timeframe, download_start)
             else:
-                print(f"⚠️  No data returned from Binance for {symbol}")
+                logger.info(f"⚠️  No data returned from Binance for {symbol}")
 
         except Exception as e:
-            print(f"⚠️  Warning: Could not download data for {symbol}: {e}")
-            print("   Proceeding with existing data...")
+            logger.info(f"⚠️  Warning: Could not download data for {symbol}: {e}")
+            logger.info("   Proceeding with existing data...")
 
     def backtest_symbol(self, symbol: str) -> BacktestResult:
         """Run backtest for a single symbol."""
@@ -166,11 +167,11 @@ class BacktestEngine:
             test_df = df[df.index >= self.config.test_start_date].copy()
 
         if test_df.empty:
-            print(f"⚠️  No data in test period for {symbol}")
+            logger.info(f"⚠️  No data in test period for {symbol}")
             return self.generate_empty_result(symbol, start_time)
 
-        print(f"📈 Processing {len(test_df)} candles for {symbol} (test period)")
-        print(f"   Using {len(df)} total candles for indicators")
+        logger.info(f"📈 Processing {len(test_df)} candles for {symbol} (test period)")
+        logger.info(f"   Using {len(df)} total candles for indicators")
 
         # Add timestamp column for compatibility
         test_df['timestamp'] = test_df.index
@@ -236,7 +237,7 @@ class BacktestEngine:
         )
 
         self.trade_count += 1
-        print(f"🟢 BUY @ ${row['close']:.4f} | Size: ${amount_invested:.2f} | Reason: {reason}")
+        # logger.info(f"🟢 BUY @ ${row['close']:.4f} | Size: ${amount_invested:.2f} | Reason: {reason}")
 
     def sell_asset(self, row: pd.Series, reason: str):
         """
@@ -256,7 +257,7 @@ class BacktestEngine:
         self.balance += liquidation_value
 
         profit = self.current_position.profit
-        print(f"🔴 SELL @ ${row['close']:.4f} | P&L: ${profit:.2f} ({self.current_position.return_percentage:.2f}%) | Reason: {reason}")
+        # logger.info(f"🔴 SELL @ ${row['close']:.4f} | P&L: ${profit:.2f} ({self.current_position.return_percentage:.2f}%) | Reason: {reason}")
 
         self.current_position = None
 
@@ -384,14 +385,14 @@ class BacktestEngine:
 
     def print_summary(self, results: dict[str, BacktestResult]):
         """Print a summary of backtest results."""
-        print("\n📊 BACKTEST SUMMARY")
-        print("=" * 50)
+        logger.info("\n📊 BACKTEST SUMMARY")
+        logger.info("=" * 50)
 
         for symbol, result in results.items():
-            print(f"\n{symbol}:")
-            print(f"  Total Trades: {result.total_trades}")
-            print(f"  Win Rate: {result.win_rate:.1%}")
-            print(f"  Total Return: ${result.total_return:.2f} ({result.total_return_pct:.2f}%)")
-            print(f"  Max Drawdown: {result.max_drawdown:.2f}%")
-            print(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
-            print(f"  Profit Factor: {result.profit_factor:.2f}")
+            logger.info(f"\n{symbol}:")
+            logger.info(f"  Total Trades: {result.total_trades}")
+            logger.info(f"  Win Rate: {result.win_rate:.1%}")
+            logger.info(f"  Total Return: ${result.total_return:.2f} ({result.total_return_pct:.2f}%)")
+            logger.info(f"  Max Drawdown: {result.max_drawdown:.2f}%")
+            logger.info(f"  Sharpe Ratio: {result.sharpe_ratio:.2f}")
+            logger.info(f"  Profit Factor: {result.profit_factor:.2f}")

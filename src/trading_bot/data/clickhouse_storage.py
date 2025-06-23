@@ -5,6 +5,7 @@ Much better than MongoDB for financial data analysis.
 
 from datetime import datetime
 from typing import Any
+import logging
 
 import pandas as pd
 from clickhouse_connect import get_client
@@ -14,6 +15,7 @@ from ..core.enums import TimeFrame
 from ..core.models import MarketData
 from ..core.settings import get_settings
 
+logger = logging.getLogger(__name__)
 
 class ClickHouseStorage:
     """ClickHouse storage optimized for time-series market data"""
@@ -25,9 +27,9 @@ class ClickHouseStorage:
         self.settings = settings
         
         try:
-            print(f"🔌 Connecting to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
-            print(f"   Username: {settings.clickhouse_username}")
-            print(f"   Database: {settings.clickhouse_database}")
+            logger.info(f"🔌 Connecting to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
+            logger.info(f"   Username: {settings.clickhouse_username}")
+            logger.info(f"   Database: {settings.clickhouse_database}")
             
             # Connect with proper authentication
             self.client: Client = get_client(
@@ -40,11 +42,11 @@ class ClickHouseStorage:
             
             # Test connection
             self.client.command('SELECT 1')
-            print("✅ ClickHouse connected successfully")
+            logger.info("✅ ClickHouse connected successfully")
             
             # Create tables
             self._create_tables()
-            print("✅ Tables verified/created")
+            logger.info("✅ Tables verified/created")
             
         except Exception as e:
             error_msg = str(e)
@@ -148,8 +150,8 @@ class ClickHouseStorage:
             )
             return True
         except Exception as e:
-            print(f"Error storing single candle: {e}")
-            print(f"  Candle: {candle.symbol} {candle.timestamp}")
+            logger.info(f"Error storing single candle: {e}")
+            logger.info(f"  Candle: {candle.symbol} {candle.timestamp}")
             return False
 
     def store_candles(self, candles: list[MarketData]) -> int:
@@ -158,7 +160,7 @@ class ClickHouseStorage:
             return 0
 
         try:
-            print(f"📦 Storing {len(candles):,} candles to ClickHouse...")
+            logger.info(f"📦 Storing {len(candles):,} candles to ClickHouse...")
             
             # Prepare batch data - only store OHLCV data initially (indicators come later)
             data = []
@@ -196,25 +198,25 @@ class ClickHouseStorage:
             timeframe = candles[0].timeframe
             count = self.count_candles(symbol, timeframe)
             
-            print(f"✅ Successfully stored {len(candles):,} candles")
-            print(f"📊 Total candles for {symbol} {timeframe.value}: {count:,}")
+            logger.info(f"✅ Successfully stored {len(candles):,} candles")
+            logger.info(f"📊 Total candles for {symbol} {timeframe.value}: {count:,}")
             
             return len(candles)
             
         except Exception as e:
-            print(f"❌ Error storing candles: {e}")
-            print(f"   Symbol: {candles[0].symbol if candles else 'N/A'}")
-            print(f"   Count: {len(candles):,}")
+            logger.info(f"❌ Error storing candles: {e}")
+            logger.info(f"   Symbol: {candles[0].symbol if candles else 'N/A'}")
+            logger.info(f"   Count: {len(candles):,}")
             
             # Try to store one by one to identify the problematic candle
-            print("🔍 Trying individual inserts to debug...")
+            logger.info("🔍 Trying individual inserts to debug...")
             stored_count = 0
             for i, candle in enumerate(candles[:10]):  # Test first 10
                 try:
                     if self.store_candle(candle):
                         stored_count += 1
                 except Exception as single_error:
-                    print(f"❌ Failed on candle {i}: {single_error}")
+                    logger.info(f"❌ Failed on candle {i}: {single_error}")
                     break
             
             return stored_count
@@ -287,7 +289,7 @@ class ClickHouseStorage:
 
             return candles
         except Exception as e:
-            print(f"Error getting candles: {e}")
+            logger.info(f"Error getting candles: {e}")
             return []
 
     def get_candles_df(self,
@@ -326,26 +328,26 @@ class ClickHouseStorage:
             query += f" LIMIT {limit}"
 
         try:
-            print(f"🔍 Querying ClickHouse for {symbol} {timeframe_str}...")
+            logger.info(f"🔍 Querying ClickHouse for {symbol} {timeframe_str}...")
             
             # ClickHouse can return DataFrame directly - much faster!
             df = self.client.query_df(query)
             
-            print(f"📊 Retrieved {len(df):,} rows from ClickHouse")
+            logger.info(f"📊 Retrieved {len(df):,} rows from ClickHouse")
             
             if not df.empty:
                 df.set_index('timestamp', inplace=True)
                 # Remove columns with all nulls
                 df = df.dropna(axis=1, how='all')
-                print(f"✅ DataFrame ready: {len(df):,} rows, {len(df.columns)} columns")
+                logger.info(f"✅ DataFrame ready: {len(df):,} rows, {len(df.columns)} columns")
             else:
-                print(f"⚠️  No data returned for {symbol} {timeframe_str}")
+                logger.info(f"⚠️  No data returned for {symbol} {timeframe_str}")
             
             return df
             
         except Exception as e:
-            print(f"❌ Error getting DataFrame: {e}")
-            print(f"   Query: {query}")
+            logger.info(f"❌ Error getting DataFrame: {e}")
+            logger.info(f"   Query: {query}")
             return pd.DataFrame()
 
     def get_latest_candle(self, symbol: str, timeframe: TimeFrame) -> MarketData | None:
@@ -384,7 +386,7 @@ class ClickHouseStorage:
             self.client.command(query)
             return True
         except Exception as e:
-            print(f"Error updating indicators: {e}")
+            logger.info(f"Error updating indicators: {e}")
             return False
 
     def get_symbols(self) -> list[str]:
@@ -393,7 +395,7 @@ class ClickHouseStorage:
             result = self.client.query("SELECT DISTINCT symbol FROM market_data ORDER BY symbol")
             return [row[0] for row in result.result_rows]
         except Exception as e:
-            print(f"Error getting symbols: {e}")
+            logger.info(f"Error getting symbols: {e}")
             return []
 
     def get_timeframes(self, symbol: str) -> list[str]:
@@ -403,7 +405,7 @@ class ClickHouseStorage:
             result = self.client.query(query)
             return [row[0] for row in result.result_rows]
         except Exception as e:
-            print(f"Error getting timeframes: {e}")
+            logger.info(f"Error getting timeframes: {e}")
             return []
 
     def get_date_range(self, symbol: str, timeframe: TimeFrame) -> tuple[datetime, datetime] | None:
@@ -423,7 +425,7 @@ class ClickHouseStorage:
                 return result.result_rows[0][0], result.result_rows[0][1]
             return None
         except Exception as e:
-            print(f"Error getting date range: {e}")
+            logger.info(f"Error getting date range: {e}")
             return None
 
     def count_candles(self, symbol: str, timeframe: TimeFrame) -> int:
@@ -439,7 +441,7 @@ class ClickHouseStorage:
             result = self.client.query(query)
             return result.result_rows[0][0] if result.result_rows else 0
         except Exception as e:
-            print(f"Error counting candles: {e}")
+            logger.info(f"Error counting candles: {e}")
             return 0
 
     def delete_candles(self,
@@ -475,7 +477,7 @@ class ClickHouseStorage:
             
             return count
         except Exception as e:
-            print(f"Error deleting candles: {e}")
+            logger.info(f"Error deleting candles: {e}")
             return 0
 
     def get_database_stats(self) -> dict[str, Any]:
@@ -530,7 +532,7 @@ class ClickHouseStorage:
             return stats
 
         except Exception as e:
-            print(f"Error getting database stats: {e}")
+            logger.info(f"Error getting database stats: {e}")
             return {"total_candles": 0, "symbols": 0}
 
     def close(self):

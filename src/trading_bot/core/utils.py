@@ -10,7 +10,9 @@ from typing import Any
 import pandas as pd
 import pytz
 import yaml
+import logging
 
+logger = logging.getLogger(__name__)
 
 def load_config(config_path: str = "config.yaml") -> dict[str, Any]:
     """Load configuration from YAML file"""
@@ -153,15 +155,15 @@ def check_data_directory() -> bool:
 
 def print_dataframe_info(df: pd.DataFrame, name: str = "DataFrame") -> None:
     """Print useful information about a DataFrame"""
-    print(f"\n{name} Info:")
-    print(f"Shape: {df.shape}")
-    print(f"Columns: {list(df.columns)}")
-    print(f"Date range: {df.index[0]} to {df.index[-1]}" if len(df) > 0 else "Empty DataFrame")
-    print(f"Memory usage: {df.memory_usage().sum() / 1024:.2f} KB")
+    logger.info(f"\n{name} Info:")
+    logger.info(f"Shape: {df.shape}")
+    logger.info(f"Columns: {list(df.columns)}")
+    logger.info(f"Date range: {df.index[0]} to {df.index[-1]}" if len(df) > 0 else "Empty DataFrame")
+    logger.info(f"Memory usage: {df.memory_usage().sum() / 1024:.2f} KB")
 
     if len(df) > 0:
-        print("Sample data:")
-        print(df.head(3).to_string())
+        logger.info("Sample data:")
+        logger.info(df.head(3).to_string())
 
 
 def calculate_sharpe_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
@@ -194,12 +196,12 @@ class Timer:
 
     def __enter__(self):
         self.start_time = datetime.now()
-        print(f"⏱️  Starting {self.description}...")
+        logger.info(f"⏱️  Starting {self.description}...")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         duration = (datetime.now() - self.start_time).total_seconds()
-        print(f"✅ {self.description} completed in {format_duration(duration)}")
+        logger.info(f"✅ {self.description} completed in {format_duration(duration)}")
 
 
 def create_project_structure():
@@ -215,4 +217,4 @@ def create_project_structure():
     for directory in directories:
         Path(directory).mkdir(exist_ok=True)
 
-    print("📁 Project structure created")
+    logger.info("📁 Project structure created")

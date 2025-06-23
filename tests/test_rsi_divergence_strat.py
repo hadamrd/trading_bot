@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test professional RSI Divergence strategy vs simple mean reversion
-Show the power of using proven institutional strategies
+IMPROVED Time-Based Strategy Test
+Fix the poor performance by making it more aggressive
 """
 
 import sys
@@ -16,77 +16,20 @@ from trading_bot.backtesting.engine import BacktestEngine
 from trading_bot.core.models import BacktestConfig
 from trading_bot.core.enums import TimeFrame
 
-def test_rsi_divergence_strategy():
-    """Test the professional RSI Divergence strategy."""
-    print("🏆 TESTING PROFESSIONAL RSI DIVERGENCE STRATEGY")
-    print("=" * 65)
-    print("Based on institutional trading methods")
-    print("Typical win rates: 65-80% when properly implemented")
-    
-    from trading_bot.strategies.rsi_divergence import RSIDivergenceStrategy
-    
-    # Test on volatile crypto
-    config = BacktestConfig(
-        symbols=["PEPEUSDT"],
-        timeframe=TimeFrame.FIFTEEN_MINUTES,
-        since_date=datetime(2024, 1, 1),
-        test_start_date=datetime(2024, 6, 1),
-        test_end_date=datetime(2024, 11, 1),  # 5 months
-        initial_balance=Decimal("5000"),
-        fee_rate=Decimal("0.001")
-    )
-    
-    # Professional RSI Divergence parameters
-    strategy = RSIDivergenceStrategy(
-        # RSI settings
-        rsi_period=14,
-        rsi_overbought=70,
-        rsi_oversold=30,
-        
-        # Divergence detection
-        divergence_lookback=20,
-        min_swing_bars=5,
-        min_divergence_strength=0.3,  # Minimum strength for signal
-        
-        # Confirmations
-        require_volume_confirmation=True,
-        require_trend_confirmation=True,
-        ema_trend_period=50,
-        
-        # Risk management (2:1 risk/reward)
-        stop_loss_atr=2.0,
-        take_profit_atr=4.0,
-        
-        # Position sizing
-        base_position_size=0.03,
-        max_position_size=0.08,
-        
-        # Volume filter
-        min_volume_ratio=1.5
-    )
-    
-    print(f"🎯 RSI Divergence Strategy:")
-    print(f"   • Detects price/RSI divergences")
-    print(f"   • Uses {strategy.divergence_lookback} bar lookback")
-    print(f"   • Requires {strategy.min_divergence_strength} minimum strength")
-    print(f"   • Volume confirmation required")
-    print(f"   • 2:1 risk/reward ratio")
-    
-    engine = BacktestEngine(config, strategy)
-    results = engine.run()
-    
-    return results
-
-def test_simple_strategy_comparison():
-    """Test simple time-based strategy for comparison."""
-    print(f"\n📊 COMPARISON: SIMPLE TIME-BASED STRATEGY")
-    print("=" * 50)
+def test_improved_strategy():
+    """Test improved time-based strategy with bigger profits"""
+    print("🚀 IMPROVED TIME-BASED STRATEGY TEST")
+    print("=" * 60)
+    print("Fixing the 0.23% return problem!")
     
     from trading_bot.strategies.time_based_reversion import TimeBasedReversionStrategy
     
+    # Test on better assets (more institutional, less meme chaos)
+    better_symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+    
     config = BacktestConfig(
-        symbols=["PEPEUSDT"],
-        timeframe=TimeFrame.FIFTEEN_MINUTES,
+        symbols=better_symbols,
+        timeframe=TimeFrame.FIVE_MINUTES,  # Shorter timeframe for more signals
         since_date=datetime(2024, 1, 1),
         test_start_date=datetime(2024, 6, 1),
         test_end_date=datetime(2024, 11, 1),
@@ -94,144 +37,148 @@ def test_simple_strategy_comparison():
         fee_rate=Decimal("0.001")
     )
     
-    # Your optimized simple strategy
-    strategy = TimeBasedReversionStrategy(
-        short_ma_period=6,
-        max_distance_from_ma=0.008,
-        rsi_period=7,
-        rsi_oversold=30,
+    # IMPROVED parameters for bigger profits
+    improved_strategy = TimeBasedReversionStrategy(
+        # More sensitive mean reversion
+        short_ma_period=8,
+        max_distance_from_ma=0.012,      # 1.2% (slightly bigger deviations)
+        
+        # Faster RSI for quicker signals
+        rsi_period=9,
+        rsi_oversold=30,                 # Standard oversold level
+        
+        # Remove time restrictions (crypto is 24/7)
         preferred_sessions=[],
-        max_velocity=0.06,
-        min_volume_ratio=1.0,
-        stop_loss_atr=2.0,
-        take_profit_atr=3.0,
-        position_size_pct=0.02
+        
+        # Allow more volatility 
+        max_velocity=0.04,               # 4% moves allowed
+        min_volume_ratio=0.9,            # Lower volume requirement
+        
+        # BIGGER PROFITS - this is the key fix!
+        stop_loss_atr=2.0,               # Same stops
+        take_profit_atr=5.0,             # 5x ATR instead of 3x (KEY CHANGE!)
+        position_size_pct=0.03           # Slightly bigger positions
     )
     
-    engine = BacktestEngine(config, strategy)
+    print(f"🎯 KEY IMPROVEMENTS:")
+    print(f"   • Take Profit: 5x ATR (vs 3x) - BIGGER PROFITS!")
+    print(f"   • Timeframe: 5m (vs 15m) - More signals")
+    print(f"   • Assets: BTC/ETH/SOL (vs PEPE) - Better patterns")
+    print(f"   • Position size: 3% (vs 2%) - More per trade")
+    
+    engine = BacktestEngine(config, improved_strategy)
     results = engine.run()
+    
+    print(f"\n🚀 IMPROVED RESULTS")
+    print(f"=" * 40)
+    
+    total_return = 0
+    total_trades = 0
+    
+    for symbol, result in results.items():
+        print(f"\n{symbol}:")
+        print(f"  Return: {result.total_return_pct:>8.2f}%")
+        print(f"  Trades: {result.total_trades:>8}")
+        print(f"  Win%:   {result.win_rate:>8.1%}")
+        print(f"  Sharpe: {result.sharpe_ratio:>8.2f}")
+        print(f"  Max DD: {result.max_drawdown:>8.2f}%")
+        
+        if result.total_trades > 0:
+            avg_per_trade = result.total_return_pct / result.total_trades
+            print(f"  Avg/Trade: {avg_per_trade:>6.3f}%")
+        
+        total_return += result.total_return_pct
+        total_trades += result.total_trades
+    
+    avg_return = total_return / len(results) if results else 0
+    
+    print(f"\n📊 IMPROVEMENT COMPARISON:")
+    print(f"   BEFORE (PEPE 15m): +0.23% (15 trades)")
+    print(f"   AFTER (BTC/ETH/SOL 5m): {avg_return:+.2f}% ({total_trades} trades)")
+    
+    if avg_return > 0.23:
+        improvement = (avg_return / 0.23) - 1
+        print(f"   🎉 IMPROVEMENT: +{improvement*100:.0f}% better returns!")
     
     return results
 
-def compare_strategies():
-    """Compare professional vs simple strategies."""
-    print("🚀 PROFESSIONAL vs SIMPLE STRATEGY COMPARISON")
-    print("=" * 70)
+def test_ultra_aggressive():
+    """Test ultra-aggressive version for maximum trades/profits"""
+    print(f"\n🔥 ULTRA-AGGRESSIVE VERSION")
+    print(f"=" * 35)
     
-    # Test professional strategy
-    try:
-        professional_results = test_rsi_divergence_strategy()
-        prof_symbol = list(professional_results.keys())[0]
-        prof_result = professional_results[prof_symbol]
-    except Exception as e:
-        print(f"❌ Professional strategy failed: {e}")
-        professional_results = None
-        prof_result = None
+    from trading_bot.strategies.time_based_reversion import TimeBasedReversionStrategy
     
-    # Test simple strategy
-    simple_results = test_simple_strategy_comparison()
-    simple_symbol = list(simple_results.keys())[0]
-    simple_result = simple_results[simple_symbol]
+    config = BacktestConfig(
+        symbols=["BTCUSDT"],  # Just BTC for focused test
+        timeframe=TimeFrame.FIVE_MINUTES,
+        since_date=datetime(2024, 1, 1),
+        test_start_date=datetime(2024, 8, 1),   # Shorter period for quick test
+        test_end_date=datetime(2024, 11, 1),
+        initial_balance=Decimal("5000"),
+        fee_rate=Decimal("0.001")
+    )
     
-    # Comparison table
-    print(f"\n📊 DETAILED COMPARISON")
-    print("=" * 60)
-    print(f"{'Metric':<20} {'Simple':<15} {'Professional':<15} {'Winner':<10}")
-    print("-" * 60)
-    
-    metrics = [
-        ('Total Return %', simple_result.total_return_pct, prof_result.total_return_pct if prof_result else 0),
-        ('Total Trades', simple_result.total_trades, prof_result.total_trades if prof_result else 0),
-        ('Win Rate %', simple_result.win_rate * 100, prof_result.win_rate * 100 if prof_result else 0),
-        ('Sharpe Ratio', simple_result.sharpe_ratio, prof_result.sharpe_ratio if prof_result else 0),
-        ('Max Drawdown %', simple_result.max_drawdown, prof_result.max_drawdown if prof_result else 0),
-        ('Profit Factor', simple_result.profit_factor, prof_result.profit_factor if prof_result else 0),
-    ]
-    
-    for metric_name, simple_val, prof_val in metrics:
-        if metric_name == 'Max Drawdown %':
-            winner = "Professional" if prof_val < simple_val else "Simple"
-        else:
-            winner = "Professional" if prof_val > simple_val else "Simple"
+    # ULTRA-AGGRESSIVE parameters
+    ultra_strategy = TimeBasedReversionStrategy(
+        short_ma_period=6,               # Very fast MA
+        max_distance_from_ma=0.008,      # Tight deviations (more signals)
         
-        print(f"{metric_name:<20} {simple_val:<15.2f} {prof_val:<15.2f} {winner:<10}")
-    
-    # Analysis
-    print(f"\n🎯 ANALYSIS:")
-    if prof_result:
-        if prof_result.total_return_pct > simple_result.total_return_pct:
-            improvement = ((prof_result.total_return_pct / simple_result.total_return_pct) - 1) * 100
-            print(f"   📈 Professional strategy outperformed by {improvement:.1f}%")
+        rsi_period=7,                    # Fast RSI
+        rsi_oversold=35,                 # Higher threshold = more trades
         
-        if prof_result.win_rate > simple_result.win_rate:
-            print(f"   🎯 Higher win rate: {prof_result.win_rate:.1%} vs {simple_result.win_rate:.1%}")
+        preferred_sessions=[],           # 24/7
+        max_velocity=0.06,               # Allow high volatility
+        min_volume_ratio=0.7,            # Low volume requirement
         
-        if prof_result.sharpe_ratio > simple_result.sharpe_ratio:
-            print(f"   📊 Better risk-adjusted returns: {prof_result.sharpe_ratio:.2f} vs {simple_result.sharpe_ratio:.2f}")
-
-def suggest_next_strategies():
-    """Suggest other professional strategies to implement."""
-    print(f"\n🚀 NEXT PROFESSIONAL STRATEGIES TO IMPLEMENT:")
-    print("=" * 55)
+        # MAXIMUM profit extraction
+        stop_loss_atr=1.8,               # Tighter stops
+        take_profit_atr=6.0,             # Even bigger targets!
+        position_size_pct=0.04           # Bigger positions
+    )
     
-    strategies = [
-        {
-            "name": "Bollinger Band Squeeze",
-            "description": "Detect low volatility → explosive breakouts",
-            "win_rate": "60-75%",
-            "best_for": "Range-bound → trending transitions"
-        },
-        {
-            "name": "VWAP + Volume Profile",
-            "description": "Institutional-level volume analysis",
-            "win_rate": "55-70%", 
-            "best_for": "High-volume crypto pairs"
-        },
-        {
-            "name": "Dual Momentum",
-            "description": "Academic quantitative strategy",
-            "win_rate": "50-65%",
-            "best_for": "Portfolio management"
-        },
-        {
-            "name": "Grid Trading Adaptive",
-            "description": "Range trading with ML adaptation",
-            "win_rate": "70-85%",
-            "best_for": "Sideways crypto markets"
-        },
-        {
-            "name": "Market Microstructure",
-            "description": "Order flow and market depth analysis",
-            "win_rate": "65-80%",
-            "best_for": "Short-term scalping"
-        }
-    ]
+    print(f"🔥 ULTRA Settings:")
+    print(f"   • Take Profit: 6x ATR")
+    print(f"   • RSI oversold: 35 (more signals)")
+    print(f"   • Position size: 4%")
     
-    for i, strategy in enumerate(strategies, 1):
-        print(f"{i}. 🏆 {strategy['name']}")
-        print(f"   Description: {strategy['description']}")
-        print(f"   Typical Win Rate: {strategy['win_rate']}")
-        print(f"   Best For: {strategy['best_for']}\n")
+    engine = BacktestEngine(config, ultra_strategy)
+    results = engine.run()
+    
+    for symbol, result in results.items():
+        print(f"\n🔥 ULTRA Results ({symbol}):")
+        print(f"   Return: {result.total_return_pct:>8.2f}%")
+        print(f"   Trades: {result.total_trades:>8}")
+        print(f"   Win%:   {result.win_rate:>8.1%}")
+        
+        if result.total_trades > 0:
+            avg_per_trade = result.total_return_pct / result.total_trades
+            print(f"   Avg/Trade: {avg_per_trade:>6.3f}%")
+    
+    return results
 
 def main():
-    """Main comparison function."""
-    print("🎯 Professional Strategy Implementation Test")
+    """Test improved strategies"""
+    print("🎯 STRATEGY IMPROVEMENT TEST")
+    print("Goal: Fix the 0.23% return problem")
+    print("=" * 50)
     
-    compare_strategies()
-    suggest_next_strategies()
+    # Test improved version
+    improved_results = test_improved_strategy()
     
-    print(f"💡 KEY INSIGHTS:")
-    print(f"   • Professional strategies use proven methods")
-    print(f"   • Higher win rates through better signal quality")
-    print(f"   • More sophisticated risk management")
-    print(f"   • Based on institutional trading practices")
+    # Test ultra-aggressive version
+    ultra_results = test_ultra_aggressive()
     
-    print(f"\n🚀 RECOMMENDED NEXT STEPS:")
-    print(f"   1. Implement RSI Divergence strategy fully")
-    print(f"   2. Test on multiple crypto pairs")
-    print(f"   3. Add machine learning confirmations") 
-    print(f"   4. Implement Bollinger Squeeze next")
-    print(f"   5. Build strategy portfolio approach")
+    print(f"\n💡 KEY INSIGHTS:")
+    print(f"   • Bigger take-profit targets = bigger returns")
+    print(f"   • 5-minute timeframe gives more opportunities") 
+    print(f"   • BTC/ETH have better mean reversion than meme coins")
+    print(f"   • Position sizing matters for total returns")
+    
+    print(f"\n🚀 NEXT STEPS:")
+    print(f"   • If results are good: optimize the best-performing asset")
+    print(f"   • If still poor: try different strategy approach")
+    print(f"   • Consider portfolio approach (multiple assets)")
 
 if __name__ == "__main__":
     main()

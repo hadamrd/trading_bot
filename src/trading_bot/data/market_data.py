@@ -5,6 +5,7 @@ Automatically selects the best storage backend based on configuration.
 
 from datetime import datetime, timedelta
 from typing import Any
+import logging
 
 import pandas as pd
 import ta
@@ -13,6 +14,7 @@ from ..core.enums import TimeFrame
 from ..core.settings import get_settings
 from .binance_client import BinanceClient
 
+logger = logging.getLogger(__name__)
 
 class MarketDataManager:
     """
@@ -74,14 +76,14 @@ class MarketDataManager:
             existing_start, existing_end = existing_range
 
             if existing_start <= start_date and existing_end >= end_date:
-                print(f"✅ {symbol} data already covers required period ({existing_start.date()} to {existing_end.date()})")
+                logger.info(f"✅ {symbol} data already covers required period ({existing_start.date()} to {existing_end.date()})")
                 return 0
 
             # Fetch missing data at the end
             if existing_end < end_date:
                 start_date = existing_end + timedelta(minutes=1)
 
-        print(f"📥 Downloading {symbol} {timeframe} from {start_date.date()} to {end_date.date()}")
+        logger.info(f"📥 Downloading {symbol} {timeframe} from {start_date.date()} to {end_date.date()}")
 
         # Fetch from Binance
         candles = self.binance.fetch_historical_data(
@@ -92,23 +94,23 @@ class MarketDataManager:
         )
 
         if not candles:
-            print(f"❌ No data fetched for {symbol}")
+            logger.info(f"❌ No data fetched for {symbol}")
             return 0
 
-        print(f"📦 Fetched {len(candles):,} candles from Binance")
-        print(f"   Date range: {candles[0].timestamp} to {candles[-1].timestamp}")
+        logger.info(f"📦 Fetched {len(candles):,} candles from Binance")
+        logger.info(f"   Date range: {candles[0].timestamp} to {candles[-1].timestamp}")
 
         # Store in database (ClickHouse batch insert is much faster than MongoDB)
         stored_count = self.storage.store_candles(candles)
         
         if stored_count > 0:
-            print(f"✅ Stored {stored_count:,} candles successfully")
+            logger.info(f"✅ Stored {stored_count:,} candles successfully")
             
             # Verify storage immediately
             verification_count = self.storage.count_candles(symbol, timeframe)
-            print(f"🔍 Verification: {verification_count:,} total candles for {symbol} {timeframe}")
+            logger.info(f"🔍 Verification: {verification_count:,} total candles for {symbol} {timeframe}")
         else:
-            print(f"❌ Failed to store candles for {symbol}")
+            logger.info(f"❌ Failed to store candles for {symbol}")
 
         return stored_count
 
@@ -122,8 +124,8 @@ class MarketDataManager:
         Get data formatted for backtesting.
         ClickHouse returns DataFrames much faster than MongoDB.
         """
-        print(f"📊 Getting backtest data for {symbol} {timeframe}")
-        print(f"   Requested period: {start_date.date()} to {(end_date or datetime.now()).date()}")
+        logger.info(f"📊 Getting backtest data for {symbol} {timeframe}")
+        logger.info(f"   Requested period: {start_date.date()} to {(end_date or datetime.now()).date()}")
         
         df = self.storage.get_candles_df(
             symbol=symbol,
@@ -133,27 +135,27 @@ class MarketDataManager:
         )
 
         if df.empty:
-            print(f"❌ No data found for {symbol} {timeframe}")
+            logger.info(f"❌ No data found for {symbol} {timeframe}")
             
             # Debug information
             total_count = self.storage.count_candles(symbol, timeframe)
-            print(f"🔍 Debug: Total candles for {symbol} {timeframe}: {total_count:,}")
+            logger.info(f"🔍 Debug: Total candles for {symbol} {timeframe}: {total_count:,}")
             
             if total_count > 0:
                 date_range = self.storage.get_date_range(symbol, timeframe)
                 if date_range:
-                    print(f"🔍 Debug: Available date range: {date_range[0]} to {date_range[1]}")
-                    print(f"🔍 Debug: Requested range: {start_date} to {end_date}")
+                    logger.info(f"🔍 Debug: Available date range: {date_range[0]} to {date_range[1]}")
+                    logger.info(f"🔍 Debug: Requested range: {start_date} to {end_date}")
             
             return df
 
         if with_indicators and len(df) >= 50:
             # Only calculate if we don't have indicators or if requested
             if 'rsi' not in df.columns or df['rsi'].isna().all():
-                print(f"📊 Calculating indicators for {symbol}...")
+                logger.info(f"📊 Calculating indicators for {symbol}...")
                 df = self.calculate_basic_indicators(df)
 
-        print(f"📈 Retrieved {len(df)} candles for {symbol} (from {df.index[0].date()} to {df.index[-1].date()})")
+        logger.info(f"📈 Retrieved {len(df)} candles for {symbol} (from {df.index[0].date()} to {df.index[-1].date()})")
         return df
 
     def calculate_basic_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -168,7 +170,7 @@ class MarketDataManager:
         df = df.copy()
 
         try:
-            print(f"🔢 Calculating indicators for {len(df)} candles...")
+            logger.info(f"🔢 Calculating indicators for {len(df)} candles...")
             
             # Moving averages
             df['ema_9'] = ta.trend.ema_indicator(df['close'], window=9)
@@ -207,10 +209,10 @@ class MarketDataManager:
             # Fix deprecated fillna warning
             df = df.ffill().fillna(0)
 
-            print(f"✅ Calculated {len([col for col in df.columns if col not in ['open', 'high', 'low', 'close', 'volume']])} indicators")
+            logger.info(f"✅ Calculated {len([col for col in df.columns if col not in ['open', 'high', 'low', 'close', 'volume']])} indicators")
 
         except Exception as e:
-            print(f"❌ Error calculating indicators: {e}")
+            logger.info(f"❌ Error calculating indicators: {e}")
 
         return df
 
@@ -225,7 +227,7 @@ class MarketDataManager:
         if start_date is None:
             start_date = datetime.now() - timedelta(days=30)
 
-        print(f"🔢 Updating indicators for {symbol} {timeframe.value}...")
+        logger.info(f"🔢 Updating indicators for {symbol} {timeframe.value}...")
 
         # Get raw data
         df = self.storage.get_candles_df(
@@ -235,7 +237,7 @@ class MarketDataManager:
         )
 
         if df.empty:
-            print(f"⚠️  No data found for {symbol} to update indicators")
+            logger.info(f"⚠️  No data found for {symbol} to update indicators")
             return 0
 
         # Calculate indicators
@@ -243,10 +245,10 @@ class MarketDataManager:
         df = self.calculate_basic_indicators(df)
 
         if len(df) == 0:
-            print(f"⚠️  No indicators calculated")
+            logger.info(f"⚠️  No indicators calculated")
             return 0
 
-        print(f"📊 Calculated indicators for {len(df):,} candles")
+        logger.info(f"📊 Calculated indicators for {len(df):,} candles")
 
         # Instead of individual UPDATEs, use ClickHouse's efficient bulk update method
         return self._bulk_update_indicators(symbol, timeframe, df)
@@ -260,7 +262,7 @@ class MarketDataManager:
             # Convert timeframe to string
             timeframe_str = timeframe.value if hasattr(timeframe, 'value') else str(timeframe)
             
-            print(f"🚀 Using bulk update strategy for {len(df):,} candles...")
+            logger.info(f"🚀 Using bulk update strategy for {len(df):,} candles...")
             
             # Strategy 1: Delete and re-insert (fastest for large datasets)
             # This is more efficient than 24k individual UPDATEs
@@ -269,7 +271,7 @@ class MarketDataManager:
             min_date = df.index.min()
             max_date = df.index.max()
             
-            print(f"🔄 Bulk updating period: {min_date} to {max_date}")
+            logger.info(f"🔄 Bulk updating period: {min_date} to {max_date}")
             
             # Step 1: Prepare new data with indicators
             new_data = []
@@ -309,11 +311,11 @@ class MarketDataManager:
               AND timestamp <= '{max_date}'
             """
             
-            print(f"🗑️  Deleting existing data in range...")
+            logger.info(f"🗑️  Deleting existing data in range...")
             self.storage.client.command(delete_query)
             
             # Step 3: Insert new data with indicators
-            print(f"📦 Inserting updated data with indicators...")
+            logger.info(f"📦 Inserting updated data with indicators...")
             self.storage.client.insert(
                 'market_data',
                 new_data,
@@ -325,14 +327,14 @@ class MarketDataManager:
                 ]
             )
 
-            print(f"✅ Bulk update completed for {len(df):,} candles")
+            logger.info(f"✅ Bulk update completed for {len(df):,} candles")
             return len(df)
 
         except Exception as e:
-            print(f"❌ Bulk update failed: {e}")
+            logger.info(f"❌ Bulk update failed: {e}")
             
             # Fallback: Skip indicator updates and continue
-            print(f"⚠️  Skipping indicator updates - proceeding with basic OHLCV data")
+            logger.info(f"⚠️  Skipping indicator updates - proceeding with basic OHLCV data")
             return 0
 
     def get_latest_price(self, symbol: str, timeframe: TimeFrame = TimeFrame.ONE_MINUTE) -> float | None:
@@ -382,10 +384,10 @@ class MarketDataManager:
         """Download data for multiple symbols"""
         results = {}
 
-        print(f"📥 Bulk downloading {len(symbols)} symbols...")
+        logger.info(f"📥 Bulk downloading {len(symbols)} symbols...")
         for i, symbol in enumerate(symbols, 1):
             try:
-                print(f"\n[{i}/{len(symbols)}] Processing {symbol}...")
+                logger.info(f"\n[{i}/{len(symbols)}] Processing {symbol}...")
                 count = self.download_and_store(symbol, timeframe, days)
                 results[symbol] = count
                 
@@ -394,12 +396,12 @@ class MarketDataManager:
                     self.update_indicators(symbol, timeframe)
                     
             except Exception as e:
-                print(f"❌ Error downloading {symbol}: {e}")
+                logger.info(f"❌ Error downloading {symbol}: {e}")
                 results[symbol] = 0
 
         successful = sum(1 for count in results.values() if count > 0)
         total_candles = sum(results.values())
-        print(f"\n✅ Bulk download complete: {successful}/{len(symbols)} symbols, {total_candles:,} total candles")
+        logger.info(f"\n✅ Bulk download complete: {successful}/{len(symbols)} symbols, {total_candles:,} total candles")
 
         return results
 
@@ -407,7 +409,7 @@ class MarketDataManager:
         """Benchmark database performance for comparison"""
         import time
         
-        print(f"🏃‍♂️ Benchmarking {self.settings.database_type} performance...")
+        logger.info(f"🏃‍♂️ Benchmarking {self.settings.database_type} performance...")
         
         # Test 1: Count query
         start = time.time()
@@ -429,12 +431,12 @@ class MarketDataManager:
             df_time = 0
             df_size = 0
         
-        print(f"📊 Performance Results ({self.settings.database_type}):")
-        print(f"   Count query: {count_time:.3f}s ({count:,} candles)")
-        print(f"   Date range query: {range_time:.3f}s")
-        print(f"   DataFrame query: {df_time:.3f}s ({df_size:,} rows)")
+        logger.info(f"📊 Performance Results ({self.settings.database_type}):")
+        logger.info(f"   Count query: {count_time:.3f}s ({count:,} candles)")
+        logger.info(f"   Date range query: {range_time:.3f}s")
+        logger.info(f"   DataFrame query: {df_time:.3f}s ({df_size:,} rows)")
         if df_size > 0:
-            print(f"   Throughput: {df_size/df_time:.0f} rows/second")
+            logger.info(f"   Throughput: {df_size/df_time:.0f} rows/second")
 
     def close(self):
         """Close connections"""
