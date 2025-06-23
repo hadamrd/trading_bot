@@ -198,7 +198,7 @@ def optimize_time_based_strategy_example():
             'crossover_prob': 0.8,
             'mutation_prob': 0.3,
             'tournament_size': 4,
-            'evaluation': evaluation_settings['num_evaluations']
+            'evaluation': evaluation_settings
         }
     )
     
