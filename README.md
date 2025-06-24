@@ -1,24 +1,31 @@
-# Trading Bot Framework
+# Advanced Trading Bot Framework
 
-A clean, modular cryptocurrency trading strategy framework with MongoDB storage, backtesting engine, and genetic optimization.
+A comprehensive cryptocurrency trading framework with multiple components:
+- **Strategy Backtesting** with ClickHouse storage
+- **Genetic Algorithm Optimization** 
+- **Real-time Order Book Trading**
+- **Smart Money Detection Dashboard**
+- **Multiple Trading Strategies**
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture
 
 ```
 src/trading_bot/
-├── core/           # Core models, enums, settings
-├── data/           # Market data management & MongoDB storage
-├── strategies/     # Trading strategy implementations
-├── backtesting/    # Strategy backtesting engine
-└── optimization/   # Genetic algorithm optimization
+├── core/                    # Models, enums, settings
+├── data/                    # ClickHouse storage & Binance client
+├── strategies/              # 8+ trading strategies
+├── backtesting/             # Strategy backtesting engine
+├── optimization/            # Genetic algorithm optimization
+├── order_book_trading/      # Real-time order book strategies
+└── smart_money_detection/   # Iceberg detection & dashboard
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+
+- Python 3.11+
 - Poetry for dependency management
-- MongoDB (for data storage)
+- ClickHouse (preferred) or MongoDB for data storage
 
 ### Setup
 ```bash
@@ -27,83 +34,37 @@ git clone <repo-url>
 cd trading-bot
 poetry install
 
-# Start MongoDB (if using Docker)
-docker run --name trading-mongo -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password -d mongo
+# Setup ClickHouse (recommended)
+make run-db
+# OR: docker run -d --name trading-clickhouse -p 8123:8123 clickhouse/clickhouse-server
 
-# Download market data
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Test the setup
+poetry run python -c "from trading_bot.data.market_data import MarketDataManager; print('✅ Setup OK')"
+```
+
+### Download Market Data
+```bash
+# Download data for backtesting
 poetry run python scripts/download_data.py --symbol BTCUSDT --days 90
 
-# Run a backtest
-poetry run python -c "
+# Check data status
+poetry run python scripts/show_data_status.py
+```
+
+## 📊 Usage Examples
+
+### 1. Run a Backtest
+```python
 from trading_bot.backtesting.engine import BacktestEngine
 from trading_bot.strategies.ema_crossover import EMACrossoverStrategy
 from trading_bot.core.models import BacktestConfig
 from trading_bot.core.enums import TimeFrame
 from datetime import datetime
 from decimal import Decimal
-
-config = BacktestConfig(
-    symbols=['BTCUSDT'],
-    timeframe=TimeFrame.FIFTEEN_MINUTES,
-    since_date=datetime(2024, 1, 1),
-    test_start_date=datetime(2024, 6, 1),
-    initial_balance=Decimal('5000')
-)
-
-strategy = EMACrossoverStrategy(fast_period=12, slow_period=26)
-engine = BacktestEngine(config, strategy)
-results = engine.run()
-"
-```
-
-## 💡 Core Concepts
-
-### Strategy Interface
-All strategies inherit from `BaseStrategy` and implement:
-- `buy_condition()` - When to enter trades
-- `sell_condition()` - When to exit trades  
-- `calculate_position_size()` - Position sizing
-- `calculate_indicators()` - Technical indicators
-
-### Data Flow
-1. **Market Data** → ClickHouse via `MarketDataManager`
-2. **Strategies** → Calculate indicators and signals
-3. **Backtest Engine** → Simulates trading with historical data
-4. **Results** → Performance metrics and trade analysis
-
-### Available Strategies
-- **EMACrossoverStrategy** - Simple moving average crossover
-- **MultiRegimeStrategy** - Adapts to volatility regimes
-- **VWAPStatisticalStrategy** - Statistical mean reversion around VWAP
-
-## 🔧 Configuration
-
-Environment variables or `.env` file:
-```bash
-MONGODB_URL=mongodb://admin:password@localhost:27017/trading_bot?authSource=admin
-BINANCE_API_KEY=your_api_key        # Optional, for live data
-BINANCE_API_SECRET=your_api_secret  # Optional, for live data
-```
-
-## 📊 Usage Examples
-
-### Download Data
-```bash
-# Single symbol
-poetry run python scripts/download_data.py --symbol BTCUSDT --days 30
-
-# Multiple symbols  
-poetry run python scripts/download_data.py --symbols BTCUSDT ETHUSDT --days 30
-
-# Popular symbols
-poetry run python scripts/download_data.py --popular --days 30
-```
-
-### Run Backtests
-```python
-from trading_bot.backtesting.engine import BacktestEngine
-from trading_bot.strategies.ema_crossover import EMACrossoverStrategy
-from trading_bot.core.models import BacktestConfig
 
 # Configure backtest
 config = BacktestConfig(
@@ -114,70 +75,92 @@ config = BacktestConfig(
     initial_balance=Decimal("5000")
 )
 
-# Create strategy
-strategy = EMACrossoverStrategy(
-    fast_period=12,
-    slow_period=26,
-    stop_loss_pct=0.02,
-    take_profit_pct=0.04
-)
-
-# Run backtest
+# Create and run strategy
+strategy = EMACrossoverStrategy(fast_period=12, slow_period=26)
 engine = BacktestEngine(config, strategy)
 results = engine.run()
 
-# Analyze results
+# Print results
 for symbol, result in results.items():
-    print(f"{symbol}: {result.total_return_pct:.2f}% return")
-    print(f"Win Rate: {result.win_rate:.1%}")
-    print(f"Total Trades: {result.total_trades}")
+    print(f"{symbol}: {result.total_return_pct:.2f}% return, {result.total_trades} trades")
 ```
 
-### Optimize Strategy
+### 2. Optimize Strategy Parameters
 ```python
-from trading_bot.optimization.genetic import GeneticOptimizer
+from trading_bot.optimization.genetic import optimize_strategy
+from trading_bot.strategies.vwap_statistical import VWAPStatisticalStrategy
 
 # Define parameter space
 param_space = {
-    'fast_period': (5, 20),
-    'slow_period': (20, 50),
-    'stop_loss_pct': (0.01, 0.05),
-    'take_profit_pct': (0.02, 0.08)
+    'vwap_period': {'type': 'int', 'range': (10, 30)},
+    'zscore_entry_threshold': {'type': 'float', 'range': (-2.5, -1.0)},
+    'stop_loss_atr': {'type': 'float', 'range': (1.5, 3.0)}
 }
 
 # Run optimization
-optimizer = GeneticOptimizer(
-    strategy_class=EMACrossoverStrategy,
-    config=config,
-    param_space=param_space
+results = optimize_strategy(
+    strategy_class=VWAPStatisticalStrategy,
+    symbols=["BTCUSDT", "ETHUSDT"],
+    parameter_space=param_space
 )
 
-best_params = optimizer.optimize(generations=20, population_size=50)
+print(f"Best parameters: {results['best_parameters']}")
 ```
 
-## 📁 Key Files
+### 3. Live Order Book Trading
+```bash
+# Test the order book trading system
+poetry run python src/trading_bot/order_book_trading/tests/quick_test.py
+```
 
-| File | Purpose |
-|------|---------|
-| `src/trading_bot/core/models.py` | Core data models (Position, MarketData, etc.) |
-| `src/trading_bot/core/enums.py` | Enums for timeframes, trade status, etc. |
-| `src/trading_bot/data/market_data.py` | Market data management |
-| `src/trading_bot/backtesting/engine.py` | Main backtesting engine |
-| `src/trading_bot/strategies/base.py` | Base strategy interface |
-| `scripts/download_data.py` | Download market data |
-| `scripts/show_data_status.py` | Check database status |
+### 4. Smart Money Detection Dashboard
+```bash
+# Start the web dashboard
+poetry run python src/trading_bot/smart_money_detection/server.py BTCUSDT
 
-## 🧪 Development
+# Open browser to: http://localhost:5000
+```
+
+## 🎯 Available Strategies
+
+| Strategy | Description | Best For |
+|----------|-------------|----------|
+| `EMACrossoverStrategy` | Simple moving average crossover | Trending markets |
+| `VWAPStatisticalStrategy` | Statistical reversion around VWAP | Mean reversion |
+| `RSIDivergenceStrategy` | Professional RSI divergence detection | Reversal points |
+| `MultiRegimeStrategy` | Adapts to volatility regimes | All market conditions |
+| `TimeBasedReversionStrategy` | Exploits intraday patterns | Scalping |
+| `VWAPBounceStrategy` | Dynamic VWAP support/resistance | Institutional levels |
+| `MultiFactorStrategy` | Combines 6 signal types | Comprehensive |
+| `SVMSlidingWindowStrategy` | Machine learning approach | Complex patterns |
+
+## ⚙️ Configuration
+
+Create a `.env` file:
+```bash
+# Database (ClickHouse preferred)
+DATABASE_TYPE=clickhouse
+CLICKHOUSE_HOST=localhost
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_USERNAME=default
+CLICKHOUSE_PASSWORD=
+CLICKHOUSE_DATABASE=trading_bot
+
+# Optional: Binance API (for live data)
+BINANCE_API_KEY=your_api_key
+BINANCE_API_SECRET=your_api_secret
+```
+
+## 🔧 Development
 
 ### Code Quality
 ```bash
-# Lint and format
+# Format and lint
+make fix-all
+
+# Or manually:
 poetry run ruff check src/ --fix
 poetry run isort src/
-poetry run black src/
-
-# Type checking
-poetry run mypy src/
 ```
 
 ### Testing
@@ -185,40 +168,90 @@ poetry run mypy src/
 # Run tests
 poetry run pytest
 
-# Test specific strategy
-poetry run python -m pytest tests/test_strategies.py
+# Test specific component
+poetry run python -m pytest tests/strategies/
 ```
 
-## 🔍 Troubleshooting
+## 📁 Key Components
 
-### Common Issues
-1. **MongoDB Connection**: Check `MONGODB_URL` environment variable
-2. **No Data**: Run `download_data.py` first
-3. **Import Errors**: Run `poetry install` to ensure dependencies
+### Core Framework
+- `src/trading_bot/core/models.py` - Data models (Position, MarketData, etc.)
+- `src/trading_bot/data/market_data.py` - Market data management
+- `src/trading_bot/backtesting/engine.py` - Backtesting engine
 
-### Debug Commands
+### Trading Strategies
+- `src/trading_bot/strategies/base.py` - Base strategy interface
+- `src/trading_bot/strategies/*.py` - Individual strategy implementations
+
+### Real-time Trading
+- `src/trading_bot/order_book_trading/` - Live order book analysis
+- `src/trading_bot/smart_money_detection/` - Iceberg detection & dashboard
+
+### Optimization
+- `src/trading_bot/optimization/genetic.py` - Genetic algorithm optimization
+
+## 🚨 Common Issues & Solutions
+
+### ClickHouse Connection Issues
 ```bash
-# Check database status
-poetry run python scripts/show_data_status.py
+# Check if ClickHouse is running
+docker ps | grep clickhouse
 
-# Verify MongoDB connection
-poetry run python -c "from trading_bot.data.storage import MongoStorage; print('MongoDB OK')"
+# Restart ClickHouse
+docker restart trading-clickhouse
+
+# Check logs
+docker logs trading-clickhouse
 ```
 
-## 📈 Performance Tips
+### No Market Data
+```bash
+# Download data first
+poetry run python scripts/download_data.py --popular --days 30
 
-1. **Data Management**: Download data once, reuse for multiple backtests
-2. **Timeframes**: 15m timeframe balances detail vs. speed
-3. **Optimization**: Start with small parameter spaces, expand gradually
-4. **Memory**: Large datasets may require pagination for optimization
+# Verify data
+poetry run python scripts/show_data_status.py
+```
+
+### Import Errors
+```bash
+# Reinstall dependencies
+poetry install --no-cache
+
+# Check Python path
+poetry run python -c "import trading_bot; print('OK')"
+```
+
+## 📈 Performance Notes
+
+- **ClickHouse vs MongoDB**: ClickHouse is ~10x faster for time-series queries
+- **Timeframes**: 15m provides good balance of detail vs. speed
+- **Memory**: Large datasets may require 8GB+ RAM for optimization
+- **Parallelization**: Genetic optimization uses multiple cores
+
+## 🔮 Roadmap
+
+- [ ] Live trading execution (paper trading first)
+- [ ] Additional ML strategies
+- [ ] Portfolio-level backtesting
+- [ ] Risk management modules
+- [ ] More sophisticated order book strategies
+
+## ⚠️ Disclaimers
+
+- **NOT FINANCIAL ADVICE**: This is educational/research software
+- **USE AT YOUR OWN RISK**: No warranty provided
+- **PAPER TRADING FIRST**: Test thoroughly before risking real money
+- **MARKET RISKS**: Past performance doesn't predict future results
 
 ## 🤝 Contributing
 
-1. Follow the existing code style (ruff + black)
-2. Add tests for new strategies
-3. Update documentation for new features
-4. Use meaningful commit messages
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Follow the existing code style
+5. Submit a pull request
 
 ## 📄 License
 
-[MIT]
+MIT License - See LICENSE file for details.
