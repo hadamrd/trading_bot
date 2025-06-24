@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Money Detection Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow-x: auto;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,255,0,0.1);
+        }
+        
+        .panel h2 {
+            margin: 0 0 15px 0;
+            color: #00ffff;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .status-bar {
+            grid-column: 1 / -1;
+            background: #2a2a2a;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff0000;
+        }
+        
+        .status-dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .status-dot.connecting {
+            background: #ffff00;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .orderbook {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .orderbook-side h3 {
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        
+        .bids h3 { color: #00ff88; }
+        .asks h3 { color: #ff4444; }
+        
+        .orderbook-level {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .bid-level {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 3px solid #00ff88;
+        }
+        
+        .ask-level {
+            background: rgba(255, 68, 68, 0.1);
+            border-left: 3px solid #ff4444;
+        }
+        
+        .orderbook-level.highlight {
+            background: rgba(255, 255, 0, 0.3) !important;
+            border-left-color: #ffff00 !important;
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+        
+        .pattern-item {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 8px 0;
+        }
+        
+        .pattern-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .pattern-side {
+            font-weight: bold;
+            color: #00ffff;
+        }
+        
+        .pattern-score {
+            background: rgba(255, 255, 0, 0.2);
+            color: #ffff00;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .pattern-details {
+            font-size: 12px;
+            color: #aaa;
+            line-height: 1.4;
+        }
+        
+        .detection-item {
+            background: rgba(255, 0, 0, 0.2);
+            border: 2px solid #ff0000;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+        }
+        
+        .detection-header {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff0000;
+            margin-bottom: 8px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .stat-item {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid #ffff00;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .controls input {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 4px;
+            padding: 5px;
+            margin: 2px;
+            width: 80px;
+        }
+        
+        .controls button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        
+        .controls button:hover {
+            background: #00cc00;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="dashboard">
+            <div class="status-bar">
+                <div class="connection-status">
+                    <div id="status-dot" class="status-dot"></div>
+                    <span id="connection-text">Connecting...</span>
+                </div>
+                <div id="stats-summary">
+                    Updates: 0 | Patterns: 0 | Detections: 0
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>📊 Order Book</h2>
+                <div id="orderbook" class="orderbook">
+                    <div class="orderbook-side bids">
+                        <h3>BIDS</h3>
+                        <div id="bids-container"></div>
+                    </div>
+                    <div class="orderbook-side asks">
+                        <h3>ASKS</h3>
+                        <div id="asks-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🔍 Active Patterns</h2>
+                <div id="patterns-container">
+                    <div class="no-data">No active patterns detected</div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🚨 Iceberg Detections</h2>
+                <div id="detections-container">
+                    <div class="no-data">No icebergs detected yet</div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>📈 Statistics</h2>
+                <div id="stats-grid" class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Patterns Tracked</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Total Detections</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Noise Filtered</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0.000%</div>
+                        <div class="stat-label">Detection Rate</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>⚙️ Controls</h2>
+                <div class="controls">
+                    <div>Min Size: <input type="number" id="min-size" value="1000" step="100"></div>
+                    <div>Min Occurrences: <input type="number" id="min-occurrences" value="4" step="1"></div>
+                    <div>Min Score: <input type="number" id="min-score" value="70" step="5"></div>
+                    <div>Size Tolerance: <input type="number" id="size-tolerance" value="0.03" step="0.01"></div>
+                    <button onclick="updateParameters()">Update Parameters</button>
+                </div>
+                <div id="system-info" class="pattern-details">
+                    Loading system info...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let lastData = {};
+        let detectionHistory = [];
+        
+        // Initialize SSE connection
+        const eventSource = new EventSource('/stream');
+        
+        eventSource.onopen = function() {
+            updateConnectionStatus('connected');
+        };
+        
+        eventSource.onerror = function() {
+            updateConnectionStatus('error');
+        };
+        
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type !== 'heartbeat') {
+                    lastData = data;
+                    updateDashboard(data);
+                }
+            } catch (e) {
+                console.error('Error parsing SSE data:', e);
+            }
+        };
+        
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('connection-text');
+            
+            dot.className = 'status-dot ' + status;
+            
+            switch(status) {
+                case 'connected':
+                    text.textContent = 'Connected - Live Data';
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'error':
+                    text.textContent = 'Connection Error';
+                    break;
+            }
+        }
+        
+        function updateDashboard(data) {
+            // Update connection status
+            updateConnectionStatus(data.connection_status || 'connected');
+            
+            // Update stats summary
+            document.getElementById('stats-summary').textContent = 
+                `Updates: ${(data.update_count || 0).toLocaleString()} | ` +
+                `Patterns: ${(data.active_patterns || []).length} | ` +
+                `Detections: ${(data.detections || []).length}`;
+            
+            // Update order book
+            updateOrderBook(data.orderbook, data.active_patterns);
+            
+            // Update patterns
+            updatePatterns(data.active_patterns);
+            
+            // Update detections
+            updateDetections(data.detections);
+            
+            // Update statistics
+            updateStatistics(data.stats, data.update_count);
+            
+            // Update system info
+            updateSystemInfo(data);
+        }
+        
+        function updateOrderBook(orderbook, patterns) {
+            if (!orderbook) return;
+            
+            const highlights = new Set(patterns.map(p => p.price));
+            
+            // Update bids
+            const bidsContainer = document.getElementById('bids-container');
+            bidsContainer.innerHTML = orderbook.bids.map(bid => {
+                const price = parseFloat(bid[0]);
+                const size = parseFloat(bid[1]);
+                const isHighlight = highlights.has(price);
+                return `<div class="orderbook-level bid-level ${isHighlight ? 'highlight' : ''}">
+                    <span>$${price.toFixed(4)}</span>
+                    <span>${size.toLocaleString()}</span>
+                </div>`;
+            }).join('');
+            
+            // Update asks
+            const asksContainer = document.getElementById('asks-container');
+            asksContainer.innerHTML = orderbook.asks.map(ask => {
+                const price = parseFloat(ask[0]);
+                const size = parseFloat(ask[1]);
+                const isHighlight = highlights.has(price);
+                return `<div class="orderbook-level ask-level ${isHighlight ? 'highlight' : ''}">
+                    <span>$${price.toFixed(4)}</span>
+                    <span>${size.toLocaleString()}</span>
+                </div>`;
+            }).join('');
+        }
+        
+        function updatePatterns(patterns) {
+            const container = document.getElementById('patterns-container');
+            
+            if (!patterns || patterns.length === 0) {
+                container.innerHTML = '<div class="no-data">No active patterns detected</div>';
+                return;
+            }
+            
+            container.innerHTML = patterns.map(pattern => `
+                <div class="pattern-item">
+                    <div class="pattern-header">
+                        <span class="pattern-side">
+                            ${pattern.side.toUpperCase()} $${pattern.price.toFixed(4)}
+                        </span>
+                        <span class="pattern-score">
+                            Score: ${pattern.score.toFixed(0)}
+                        </span>
+                    </div>
+                    <div class="pattern-details">
+                        Size: ${pattern.size.toLocaleString()} | 
+                        Occurrences: ${pattern.occurrences} | 
+                        Frequency: ${pattern.frequency.toFixed(1)}/min<br/>
+                        Duration: ${pattern.duration.toFixed(0)}s | 
+                        Replenish: ${pattern.replenishment_time.toFixed(1)}s
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateDetections(detections) {
+            if (detections && detections.length > 0) {
+                detections.forEach(detection => {
+                    if (!detectionHistory.find(d => d.id === detection.id)) {
+                        detectionHistory.unshift(detection);
+                    }
+                });
+                detectionHistory = detectionHistory.slice(0, 10); // Keep last 10
+            }
+            
+            const container = document.getElementById('detections-container');
+            
+            if (detectionHistory.length === 0) {
+                container.innerHTML = '<div class="no-data">No icebergs detected yet</div>';
+                return;
+            }
+            
+            container.innerHTML = detectionHistory.map(detection => `
+                <div class="detection-item">
+                    <div class="detection-header">
+                        🎯 ${detection.side.toUpperCase()} ICEBERG
+                    </div>
+                    <div>
+                        <strong>$${detection.price.toFixed(4)}</strong> x ${detection.size.toLocaleString()}
+                    </div>
+                    <div>
+                        Confidence: ${(detection.confidence * 100).toFixed(1)}% | 
+                        Occurrences: ${detection.occurrences}
+                    </div>
+                    <div>
+                        Est. Total: ${detection.estimated_total.toLocaleString()}
+                    </div>
+                    <div class="timestamp">
+                        ${new Date(detection.detected_at).toLocaleTimeString()}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateStatistics(stats, updateCount) {
+            const statsItems = document.querySelectorAll('.stat-item .stat-value');
+            if (statsItems.length >= 4 && stats) {
+                statsItems[0].textContent = stats.total_patterns_tracked || 0;
+                statsItems[1].textContent = stats.total_detections || 0;
+                statsItems[2].textContent = stats.noise_filtered || 0;
+                
+                const detectionRate = stats.total_detections && updateCount ? 
+                    ((stats.total_detections / updateCount) * 100).toFixed(3) : '0.000';
+                statsItems[3].textContent = detectionRate + '%';
+            }
+        }
+        
+        function updateSystemInfo(data) {
+            const container = document.getElementById('system-info');
+            const stats = data.stats || {};
+            
+            container.innerHTML = `
+                <strong>Detection Parameters:</strong><br/>
+                Symbol: ${data.symbol || 'Unknown'}<br/>
+                Connection: ${data.connection_status || 'Unknown'}<br/>
+                Updates: ${(data.update_count || 0).toLocaleString()}<br/>
+                Last Update: ${data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : 'None'}<br/><br/>
+                
+                <strong>Active Tracking:</strong><br/>
+                Bid Patterns: ${stats.active_bid_patterns || 0}<br/>
+                Ask Patterns: ${stats.active_ask_patterns || 0}<br/>
+                Recent Detections: ${stats.recent_detections || 0}<br/>
+            `;
+        }
+        
+        function updateParameters() {
+            const params = {
+                min_size: parseFloat(document.getElementById('min-size').value),
+                min_occurrences: parseInt(document.getElementById('min-occurrences').value),
+                min_iceberg_score: parseFloat(document.getElementById('min-score').value),
+                size_tolerance: parseFloat(document.getElementById('size-tolerance').value)
+            };
+            
+            fetch('/api/parameters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Parameters updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating parameters:', error);
+            });
+        }
+        
+        // Load current parameters on page load
+        fetch('/api/parameters')
+            .then(response => response.json())
+            .then(params => {
+                document.getElementById('min-size').value = params.min_size;
+                document.getElementById('min-occurrences').value = params.min_occurrences;
+                document.getElementById('min-score').value = params.min_iceberg_score;
+                document.getElementById('size-tolerance').value = params.size_tolerance;
+            });
+    </script>
+</body>
+</html>
