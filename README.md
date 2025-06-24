@@ -66,7 +66,7 @@ All strategies inherit from `BaseStrategy` and implement:
 - `calculate_indicators()` - Technical indicators
 
 ### Data Flow
-1. **Market Data** → MongoDB via `MarketDataManager`
+1. **Market Data** → ClickHouse via `MarketDataManager`
 2. **Strategies** → Calculate indicators and signals
 3. **Backtest Engine** → Simulates trading with historical data
 4. **Results** → Performance metrics and trade analysis
