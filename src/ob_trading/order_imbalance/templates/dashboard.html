@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Book Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow-x: auto;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+            min-height: 100vh;
+        }
+        
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,255,0,0.1);
+        }
+        
+        .panel h2 {
+            margin: 0 0 15px 0;
+            color: #00ffff;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .status-bar {
+            grid-column: 1 / -1;
+            background: #2a2a2a;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff0000;
+        }
+        
+        .status-dot.connected {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        .status-dot.connecting {
+            background: #ffff00;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .metric {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: #888;
+        }
+        
+        .orderbook {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .orderbook-side h3 {
+            margin: 0 0 8px 0;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .bids h3 { color: #00ff88; }
+        .asks h3 { color: #ff4444; }
+        
+        .orderbook-level {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 8px;
+            margin: 1px 0;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .bid-level {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 2px solid #00ff88;
+        }
+        
+        .ask-level {
+            background: rgba(255, 68, 68, 0.1);
+            border-left: 2px solid #ff4444;
+        }
+        
+        .imbalance-bar {
+            width: 100%;
+            height: 30px;
+            background: #333;
+            border-radius: 5px;
+            position: relative;
+            margin: 10px 0;
+        }
+        
+        .imbalance-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .imbalance-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .signal {
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            padding: 8px;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .signal.STRONG_BUY { border-color: #00ff00; background: rgba(0, 255, 0, 0.1); }
+        .signal.STRONG_SELL { border-color: #ff0000; background: rgba(255, 0, 0, 0.1); }
+        .signal.MODERATE_BUY { border-color: #88ff00; background: rgba(136, 255, 0, 0.1); }
+        .signal.MODERATE_SELL { border-color: #ff8800; background: rgba(255, 136, 0, 0.1); }
+        .signal.LARGE_BID_WALL { border-color: #0088ff; background: rgba(0, 136, 255, 0.1); }
+        .signal.LARGE_ASK_WALL { border-color: #ff0088; background: rgba(255, 0, 136, 0.1); }
+        
+        .controls {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .controls input {
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 3px;
+            padding: 4px;
+            margin: 2px;
+            width: 70px;
+            font-size: 11px;
+        }
+        
+        .controls button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 3px;
+            padding: 4px 8px;
+            margin: 2px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .chart-container {
+            height: 200px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .no-data {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="status-bar">
+            <div class="connection-status">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="connection-text">Connecting...</span>
+            </div>
+            <div id="stats-summary">
+                Updates: 0 | Signals: 0 | Price: $0.00
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>📊 Live Metrics</h2>
+            <div id="metrics-grid" class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-value" id="price">$0.0000</div>
+                    <div class="metric-label">Price</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="spread">0.000%</div>
+                    <div class="metric-label">Spread</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="bid-ratio">50.0%</div>
+                    <div class="metric-label">Bid Ratio</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="total-value">$0</div>
+                    <div class="metric-label">Total Value</div>
+                </div>
+            </div>
+            
+            <h3>Imbalance Ratio</h3>
+            <div class="imbalance-bar">
+                <div id="imbalance-fill" class="imbalance-fill">
+                    <div class="imbalance-text" id="imbalance-text">50% BID | 50% ASK</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div>Strong: <input type="number" id="strong-threshold" step="0.05" min="0.5" max="1"></div>
+                <div>Moderate: <input type="number" id="moderate-threshold" step="0.05" min="0.5" max="1"></div>
+                <div>Wall: <input type="number" id="wall-threshold" step="0.05" min="0.1" max="0.5"></div>
+                <div>Persistence: <input type="number" id="persistence-seconds" step="0.5" min="1" max="10"></div>
+                <div>Cooldown: <input type="number" id="cooldown-seconds" step="5" min="5" max="120"></div>
+                <div>Min Confidence: <input type="number" id="min-confidence" step="0.05" min="0.1" max="1"></div>
+                <button onclick="updateConfig()">Update</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>📋 Order Book</h2>
+            <div id="orderbook" class="orderbook">
+                <div class="orderbook-side bids">
+                    <h3>BIDS</h3>
+                    <div id="bids-container"></div>
+                </div>
+                <div class="orderbook-side asks">
+                    <h3>ASKS</h3>
+                    <div id="asks-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>🚨 Recent Signals</h2>
+            <div id="signals-container">
+                <div class="no-data">No signals detected yet</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let eventSource;
+        let lastData = {};
+        
+        function initializeSSE() {
+            eventSource = new EventSource('/stream');
+            
+            eventSource.onopen = function() {
+                updateConnectionStatus('connected');
+            };
+            
+            eventSource.onerror = function() {
+                updateConnectionStatus('error');
+                setTimeout(initializeSSE, 5000);
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type !== 'heartbeat') {
+                        lastData = data;
+                        updateDashboard(data);
+                    }
+                } catch (e) {
+                    console.error('Error parsing data:', e);
+                }
+            };
+        }
+        
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('connection-text');
+            
+            dot.className = 'status-dot ' + status;
+            
+            switch(status) {
+                case 'connected':
+                    text.textContent = 'Connected - Live Data';
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'error':
+                    text.textContent = 'Connection Error';
+                    break;
+            }
+        }
+        
+        function updateDashboard(data) {
+            updateConnectionStatus(data.connection_status);
+            
+            // Update stats summary with enhanced info
+            const metrics = data.latest_metrics || {};
+            const stats = data.statistics || {};
+            document.getElementById('stats-summary').textContent = 
+                `Updates: ${(data.update_count || 0).toLocaleString()} | ` +
+                `Quality Signals: ${(data.signals || []).length} | ` +
+                `Price: ${(metrics.mid_price || 0).toFixed(4)} | ` +
+                `Filter Rate: ${((stats.filter_rate || 0) * 100).toFixed(1)}%`;
+            
+            // Update metrics
+            updateMetrics(data.latest_metrics);
+            
+            // Update order book
+            updateOrderBook(data.latest_orderbook);
+            
+            // Update signals
+            updateSignals(data.signals || []);
+        }
+        
+        function updateMetrics(metrics) {
+            if (!metrics.mid_price) return;
+            
+            document.getElementById('price').textContent = `$${metrics.mid_price.toFixed(4)}`;
+            document.getElementById('spread').textContent = `${(metrics.spread_pct || 0).toFixed(3)}%`;
+            document.getElementById('bid-ratio').textContent = `${((metrics.bid_ratio || 0.5) * 100).toFixed(1)}%`;
+            document.getElementById('total-value').textContent = `$${((metrics.total_bid_value || 0) + (metrics.total_ask_value || 0)).toLocaleString()}`;
+            
+            // Update imbalance bar
+            const bidRatio = metrics.bid_ratio || 0.5;
+            const fill = document.getElementById('imbalance-fill');
+            const text = document.getElementById('imbalance-text');
+            
+            if (bidRatio > 0.6) {
+                fill.style.background = `linear-gradient(90deg, #00ff88 0%, #00ff88 ${bidRatio*100}%, #333 ${bidRatio*100}%, #333 100%)`;
+            } else if (bidRatio < 0.4) {
+                fill.style.background = `linear-gradient(90deg, #333 0%, #333 ${bidRatio*100}%, #ff4444 ${bidRatio*100}%, #ff4444 100%)`;
+            } else {
+                fill.style.background = `linear-gradient(90deg, #00ff88 0%, #00ff88 ${bidRatio*100}%, #ff4444 ${bidRatio*100}%, #ff4444 100%)`;
+            }
+            
+            text.textContent = `${(bidRatio*100).toFixed(1)}% BID | ${((1-bidRatio)*100).toFixed(1)}% ASK`;
+        }
+        
+        function updateOrderBook(orderbook) {
+            if (!orderbook || !orderbook.bids || !orderbook.asks) return;
+            
+            // Update bids
+            const bidsContainer = document.getElementById('bids-container');
+            bidsContainer.innerHTML = orderbook.bids.map(bid => `
+                <div class="orderbook-level bid-level">
+                    <span>$${bid[0].toFixed(4)}</span>
+                    <span>${bid[1].toLocaleString()}</span>
+                </div>
+            `).join('');
+            
+            // Update asks (reverse order for visual appeal)
+            const asksContainer = document.getElementById('asks-container');
+            asksContainer.innerHTML = orderbook.asks.slice().reverse().map(ask => `
+                <div class="orderbook-level ask-level">
+                    <span>$${ask[0].toFixed(4)}</span>
+                    <span>${ask[1].toLocaleString()}</span>
+                </div>
+            `).join('');
+        }
+        
+        function updateSignals(signals) {
+            const container = document.getElementById('signals-container');
+            
+            if (!signals || signals.length === 0) {
+                container.innerHTML = '<div class="no-data">No high-quality signals detected yet</div>';
+                return;
+            }
+            
+            // Show last 8 signals (they're higher quality now)
+            const recentSignals = signals.slice(-8).reverse();
+            
+            container.innerHTML = recentSignals.map(signal => `
+                <div class="signal ${signal.type}">
+                    <strong>${signal.type}</strong><br>
+                    Price: ${signal.price.toFixed(4)}<br>
+                    Confidence: ${(signal.confidence * 100).toFixed(0)}% | 
+                    Strength: ${(signal.strength * 100).toFixed(0)}%<br>
+                    Duration: ${signal.duration?.toFixed(1) || 0}s<br>
+                    ${signal.reason}<br>
+                    <small>${new Date(signal.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `).join('');
+        }
+        
+        function updateConfig() {
+            const config = {
+                strong_threshold: parseFloat(document.getElementById('strong-threshold').value),
+                moderate_threshold: parseFloat(document.getElementById('moderate-threshold').value),
+                wall_threshold: parseFloat(document.getElementById('wall-threshold').value),
+                persistence_seconds: parseFloat(document.getElementById('persistence-seconds').value),
+                cooldown_seconds: parseFloat(document.getElementById('cooldown-seconds').value),
+                min_confidence: parseFloat(document.getElementById('min-confidence').value)
+            };
+            
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => console.log('Config updated:', data))
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Load current config
+        fetch('/api/config')
+            .then(response => response.json())
+            .then(config => {
+                document.getElementById('strong-threshold').value = config.strong_threshold;
+                document.getElementById('moderate-threshold').value = config.moderate_threshold;
+                document.getElementById('wall-threshold').value = config.wall_threshold;
+                document.getElementById('persistence-seconds').value = config.persistence_seconds || 3.0;
+                document.getElementById('cooldown-seconds').value = config.cooldown_seconds || 30.0;
+                document.getElementById('min-confidence').value = config.min_confidence || 0.7;
+            });
+        
+        // Initialize
+        initializeSSE();
+    </script>
+</body>
+</html>

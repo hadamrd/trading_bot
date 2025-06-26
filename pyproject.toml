@@ -3,7 +3,7 @@ name = "trading-bot"
 version = "0.2.0"
 description = "Trading strategy backtesting framework with ClickHouse"
 authors = ["Majdoub Khalid <majdoub.khalid@gmail.com>"]
-packages = [{include = "trading_bot", from = "src"}]
+packages = [{include = "trading_bot", from = "src"}, { include = "ob_trading", from = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
