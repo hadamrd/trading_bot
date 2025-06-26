@@ -27,8 +27,8 @@ def test_optimized_volatile_strategy():
         symbols=["PEPEUSDT"],
         timeframe=TimeFrame.FIVE_MINUTES,
         since_date=datetime(2024, 1, 1),
-        test_start_date=datetime(2024, 6, 1),
-        test_end_date=datetime(2024, 9, 1),  # 3 months test
+        test_start_date=datetime(2025, 6, 1),
+        test_end_date=datetime(2025, 6, 25),  # 3 months test
         initial_balance=Decimal("5000"),
         fee_rate=Decimal("0.001")
     )
