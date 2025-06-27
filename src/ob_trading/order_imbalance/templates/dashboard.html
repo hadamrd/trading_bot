@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Book Dashboard</title>
+    <title>Order Book Dashboard with Delta Charts</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -15,7 +16,7 @@
         
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 15px;
             padding: 15px;
             min-height: 100vh;
@@ -102,6 +103,29 @@
             color: #888;
         }
         
+        /* Delta-specific metrics */
+        .delta-metric {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffa500;
+        }
+        
+        .delta-metric .metric-value {
+            color: #ffa500;
+        }
+        
+        .delta-positive { 
+            background: rgba(0, 255, 0, 0.1);
+            border-color: #00ff00;
+        }
+        
+        .delta-negative { 
+            background: rgba(255, 0, 0, 0.1);
+            border-color: #ff0000;
+        }
+        
+        .delta-positive .metric-value { color: #00ff00; }
+        .delta-negative .metric-value { color: #ff0000; }
+        
         .orderbook {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -162,6 +186,21 @@
             font-size: 12px;
         }
         
+        /* Chart containers */
+        .chart-container {
+            height: 200px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            margin: 10px 0;
+            padding: 10px;
+            position: relative;
+        }
+        
+        .small-chart {
+            height: 120px;
+        }
+        
         .signal {
             background: rgba(255, 255, 0, 0.1);
             border: 1px solid #ffff00;
@@ -175,8 +214,23 @@
         .signal.STRONG_SELL { border-color: #ff0000; background: rgba(255, 0, 0, 0.1); }
         .signal.MODERATE_BUY { border-color: #88ff00; background: rgba(136, 255, 0, 0.1); }
         .signal.MODERATE_SELL { border-color: #ff8800; background: rgba(255, 136, 0, 0.1); }
-        .signal.LARGE_BID_WALL { border-color: #0088ff; background: rgba(0, 136, 255, 0.1); }
-        .signal.LARGE_ASK_WALL { border-color: #ff0088; background: rgba(255, 0, 136, 0.1); }
+        .signal.BID_WALL_SUPPORT { border-color: #0088ff; background: rgba(0, 136, 255, 0.1); }
+        .signal.ASK_WALL_RESISTANCE { border-color: #ff0088; background: rgba(255, 0, 136, 0.1); }
+        
+        .signal-confirmations {
+            font-size: 10px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .confirmation-badge {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            border-radius: 3px;
+            padding: 2px 5px;
+            margin: 0 2px;
+            font-size: 9px;
+        }
         
         .controls {
             background: rgba(0, 255, 255, 0.1);
@@ -208,13 +262,18 @@
             font-size: 11px;
         }
         
-        .chart-container {
-            height: 200px;
-            background: #111;
-            border: 1px solid #333;
+        .delta-controls {
+            background: rgba(255, 165, 0, 0.1);
+            border: 1px solid #ffa500;
             border-radius: 5px;
-            margin: 10px 0;
-            position: relative;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .delta-controls h4 {
+            color: #ffa500;
+            margin: 0 0 10px 0;
+            font-size: 12px;
         }
         
         .no-data {
@@ -222,6 +281,33 @@
             color: #666;
             font-style: italic;
             padding: 20px;
+        }
+
+        /* Delta divergence indicator */
+        .divergence-indicator {
+            background: rgba(255, 255, 0, 0.2);
+            border: 1px solid #ffff00;
+            border-radius: 5px;
+            padding: 5px;
+            margin: 5px 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .divergence-indicator.active {
+            background: rgba(255, 255, 0, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Chart styling for dark theme */
+        .chart-container canvas {
+            background: transparent !important;
         }
     </style>
 </head>
@@ -233,12 +319,12 @@
                 <span id="connection-text">Connecting...</span>
             </div>
             <div id="stats-summary">
-                Updates: 0 | Signals: 0 | Price: $0.00
+                Updates: 0 | Quality Signals: 0 | Price: $0.00 | Delta Confirmations: 0%
             </div>
         </div>
         
         <div class="panel">
-            <h2>📊 Live Metrics</h2>
+            <h2>📊 Order Book Metrics</h2>
             <div id="metrics-grid" class="metrics-grid">
                 <div class="metric">
                     <div class="metric-value" id="price">$0.0000</div>
@@ -258,7 +344,7 @@
                 </div>
             </div>
             
-            <h3>Imbalance Ratio</h3>
+            <h3>Order Book Imbalance</h3>
             <div class="imbalance-bar">
                 <div id="imbalance-fill" class="imbalance-fill">
                     <div class="imbalance-text" id="imbalance-text">50% BID | 50% ASK</div>
@@ -275,6 +361,46 @@
                 <button onclick="updateConfig()">Update</button>
             </div>
         </div>
+
+        <div class="panel">
+            <h2>📈 Volume Delta Analysis</h2>
+            <div id="delta-metrics-grid" class="metrics-grid">
+                <div class="metric delta-metric" id="cumulative-delta-metric">
+                    <div class="metric-value" id="cumulative-delta">$0</div>
+                    <div class="metric-label">Cumulative Delta</div>
+                </div>
+                <div class="metric delta-metric" id="current-delta-metric">
+                    <div class="metric-value" id="current-delta">$0</div>
+                    <div class="metric-label">Current Period</div>
+                </div>
+                <div class="metric delta-metric">
+                    <div class="metric-value" id="buy-volume-pct">50%</div>
+                    <div class="metric-label">Buy Volume</div>
+                </div>
+                <div class="metric delta-metric">
+                    <div class="metric-value" id="delta-acceleration">0</div>
+                    <div class="metric-label">Acceleration</div>
+                </div>
+            </div>
+
+            <h3>Cumulative Delta Chart</h3>
+            <div class="chart-container small-chart">
+                <canvas id="cumulativeDeltaChart"></canvas>
+            </div>
+
+            <div id="divergence-status" class="divergence-indicator">
+                No Price/Delta Divergence
+            </div>
+
+            <div class="delta-controls">
+                <h4>Delta Configuration</h4>
+                <div>Enable Delta: <input type="checkbox" id="enable-delta" checked></div>
+                <div>Delta Weight: <input type="number" id="delta-weight" step="0.1" min="0" max="1" value="0.4"></div>
+                <div>Strong Threshold: <input type="number" id="delta-strong-threshold" step="0.05" min="0.5" max="1" value="0.7"></div>
+                <div>Moderate Threshold: <input type="number" id="delta-moderate-threshold" step="0.05" min="0.3" max="0.8" value="0.4"></div>
+                <button onclick="updateDeltaConfig()">Update Delta</button>
+            </div>
+        </div>
         
         <div class="panel">
             <h2>📋 Order Book</h2>
@@ -288,12 +414,17 @@
                     <div id="asks-container"></div>
                 </div>
             </div>
+
+            <h3>Price vs Delta</h3>
+            <div class="chart-container small-chart">
+                <canvas id="priceDeltaChart"></canvas>
+            </div>
         </div>
         
         <div class="panel">
-            <h2>🚨 Recent Signals</h2>
+            <h2>🚨 Professional Signals</h2>
             <div id="signals-container">
-                <div class="no-data">No signals detected yet</div>
+                <div class="no-data">No high-quality signals detected yet</div>
             </div>
         </div>
     </div>
@@ -301,6 +432,149 @@
     <script>
         let eventSource;
         let lastData = {};
+        
+        // Chart instances
+        let cumulativeDeltaChart;
+        let priceDeltaChart;
+        
+        // Chart data storage
+        let deltaHistory = [];
+        let priceHistory = [];
+        let timeLabels = [];
+        const maxDataPoints = 100;
+        
+        function initializeCharts() {
+            // Cumulative Delta Chart
+            const deltaCtx = document.getElementById('cumulativeDeltaChart').getContext('2d');
+            cumulativeDeltaChart = new Chart(deltaCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [{
+                        label: 'Cumulative Delta',
+                        data: deltaHistory,
+                        borderColor: '#ffa500',
+                        backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: { color: '#333' }
+                        },
+                        y: {
+                            grid: { color: '#333' },
+                            ticks: {
+                                color: '#888',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#888' }
+                        }
+                    }
+                }
+            });
+
+            // Price vs Delta Chart  
+            const priceCtx = document.getElementById('priceDeltaChart').getContext('2d');
+            priceDeltaChart = new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Price',
+                            data: priceHistory,
+                            borderColor: '#00ff00',
+                            backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Delta (scaled)',
+                            data: deltaHistory.map(d => d / 1000), // Scale delta for visibility
+                            borderColor: '#ffa500',
+                            backgroundColor: 'rgba(255, 165, 0, 0.1)',
+                            borderWidth: 2,
+                            yAxisID: 'y1',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: false,
+                            grid: { color: '#333' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: '#333' },
+                            ticks: {
+                                color: '#00ff00',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(4);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                color: '#ffa500',
+                                callback: function(value) {
+                                    return '$' + (value * 1000).toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#888' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartData(price, cumulativeDelta) {
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+
+            // Add new data
+            timeLabels.push(timeLabel);
+            priceHistory.push(price);
+            deltaHistory.push(cumulativeDelta);
+
+            // Limit data points
+            if (timeLabels.length > maxDataPoints) {
+                timeLabels.shift();
+                priceHistory.shift();
+                deltaHistory.shift();
+            }
+
+            // Update charts
+            cumulativeDeltaChart.update('none');
+            priceDeltaChart.update('none');
+        }
         
         function initializeSSE() {
             eventSource = new EventSource('/stream');
@@ -349,26 +623,37 @@
         function updateDashboard(data) {
             updateConnectionStatus(data.connection_status);
             
-            // Update stats summary with enhanced info
+            // Update stats summary
             const metrics = data.latest_metrics || {};
             const stats = data.statistics || {};
+            const deltaStats = stats.delta_stats || {};
+            
             document.getElementById('stats-summary').textContent = 
                 `Updates: ${(data.update_count || 0).toLocaleString()} | ` +
                 `Quality Signals: ${(data.signals || []).length} | ` +
                 `Price: ${(metrics.mid_price || 0).toFixed(4)} | ` +
+                `Delta Confirmations: ${(stats.delta_confirmation_rate || 0).toFixed(1)}% | ` +
                 `Filter Rate: ${((stats.filter_rate || 0) * 100).toFixed(1)}%`;
             
-            // Update metrics
-            updateMetrics(data.latest_metrics);
+            // Update order book metrics
+            updateOrderBookMetrics(data.latest_metrics);
+            
+            // Update delta metrics and charts
+            updateDeltaMetrics(deltaStats);
+            
+            // Update charts if we have price and delta data
+            if (metrics.mid_price && deltaStats.cumulative_delta !== undefined) {
+                updateChartData(metrics.mid_price, deltaStats.cumulative_delta);
+            }
             
             // Update order book
             updateOrderBook(data.latest_orderbook);
             
             // Update signals
-            updateSignals(data.signals || []);
+            updateProfessionalSignals(data.signals || []);
         }
         
-        function updateMetrics(metrics) {
+        function updateOrderBookMetrics(metrics) {
             if (!metrics.mid_price) return;
             
             document.getElementById('price').textContent = `$${metrics.mid_price.toFixed(4)}`;
@@ -391,11 +676,68 @@
             
             text.textContent = `${(bidRatio*100).toFixed(1)}% BID | ${((1-bidRatio)*100).toFixed(1)}% ASK`;
         }
+
+        function updateDeltaMetrics(deltaStats) {
+            if (!deltaStats || Object.keys(deltaStats).length === 0) {
+                document.getElementById('cumulative-delta').textContent = 'No Data';
+                document.getElementById('current-delta').textContent = 'No Data';
+                document.getElementById('buy-volume-pct').textContent = 'No Data';
+                document.getElementById('delta-acceleration').textContent = 'No Data';
+                return;
+            }
+
+            // Update cumulative delta with color coding
+            const cumulativeDelta = deltaStats.cumulative_delta || 0;
+            const cumulativeDeltaEl = document.getElementById('cumulative-delta');
+            const cumulativeDeltaMetric = document.getElementById('cumulative-delta-metric');
+            
+            cumulativeDeltaEl.textContent = `$${cumulativeDelta.toLocaleString()}`;
+            
+            cumulativeDeltaMetric.className = 'metric delta-metric';
+            if (cumulativeDelta > 1000) {
+                cumulativeDeltaMetric.classList.add('delta-positive');
+            } else if (cumulativeDelta < -1000) {
+                cumulativeDeltaMetric.classList.add('delta-negative');
+            }
+
+            // Update current period delta
+            const currentDelta = deltaStats.current_minute_delta || 0;
+            const currentDeltaEl = document.getElementById('current-delta');
+            const currentDeltaMetric = document.getElementById('current-delta-metric');
+            
+            currentDeltaEl.textContent = `$${currentDelta.toLocaleString()}`;
+            
+            currentDeltaMetric.className = 'metric delta-metric';
+            if (currentDelta > 100) {
+                currentDeltaMetric.classList.add('delta-positive');
+            } else if (currentDelta < -100) {
+                currentDeltaMetric.classList.add('delta-negative');
+            }
+
+            // Update buy volume percentage
+            const buyPercentage = deltaStats.buy_percentage || 50;
+            document.getElementById('buy-volume-pct').textContent = `${buyPercentage.toFixed(1)}%`;
+
+            // Update delta acceleration
+            const acceleration = deltaStats.delta_acceleration || 0;
+            document.getElementById('delta-acceleration').textContent = acceleration.toFixed(0);
+
+            // Update divergence indicator
+            const divergenceEl = document.getElementById('divergence-status');
+            const divergenceDetected = deltaStats.divergence_detected || false;
+
+            if (divergenceDetected) {
+                divergenceEl.textContent = '⚠️ PRICE/DELTA DIVERGENCE DETECTED';
+                divergenceEl.className = 'divergence-indicator active';
+            } else {
+                divergenceEl.textContent = 'No Price/Delta Divergence';
+                divergenceEl.className = 'divergence-indicator';
+            }
+        }
         
         function updateOrderBook(orderbook) {
             if (!orderbook || !orderbook.bids || !orderbook.asks) return;
             
-            // Update bids
             const bidsContainer = document.getElementById('bids-container');
             bidsContainer.innerHTML = orderbook.bids.map(bid => `
                 <div class="orderbook-level bid-level">
@@ -404,7 +746,6 @@
                 </div>
             `).join('');
             
-            // Update asks (reverse order for visual appeal)
             const asksContainer = document.getElementById('asks-container');
             asksContainer.innerHTML = orderbook.asks.slice().reverse().map(ask => `
                 <div class="orderbook-level ask-level">
@@ -414,28 +755,37 @@
             `).join('');
         }
         
-        function updateSignals(signals) {
+        function updateProfessionalSignals(signals) {
             const container = document.getElementById('signals-container');
             
             if (!signals || signals.length === 0) {
-                container.innerHTML = '<div class="no-data">No high-quality signals detected yet</div>';
+                container.innerHTML = '<div class="no-data">No high-quality professional signals detected yet</div>';
                 return;
             }
             
-            // Show last 8 signals (they're higher quality now)
             const recentSignals = signals.slice(-8).reverse();
             
-            container.innerHTML = recentSignals.map(signal => `
-                <div class="signal ${signal.type}">
-                    <strong>${signal.type}</strong><br>
-                    Price: ${signal.price.toFixed(4)}<br>
-                    Confidence: ${(signal.confidence * 100).toFixed(0)}% | 
-                    Strength: ${(signal.strength * 100).toFixed(0)}%<br>
-                    Duration: ${signal.duration?.toFixed(1) || 0}s<br>
-                    ${signal.reason}<br>
-                    <small>${new Date(signal.timestamp).toLocaleTimeString()}</small>
-                </div>
-            `).join('');
+            container.innerHTML = recentSignals.map(signal => {
+                const confirmationBadges = (signal.confirmations || ['ORDER_BOOK']).map(conf => 
+                    `<span class="confirmation-badge">${conf}</span>`
+                ).join('');
+
+                return `
+                    <div class="signal ${signal.type}">
+                        <strong>${signal.type}</strong><br>
+                        Price: ${signal.price.toFixed(4)} | 
+                        Confidence: ${(signal.confidence * 100).toFixed(0)}%<br>
+                        Position Size: ${(signal.recommended_position_size * 100).toFixed(1)}% | 
+                        Hold: ${signal.suggested_hold_time}s<br>
+                        Duration: ${signal.duration?.toFixed(1) || 0}s<br>
+                        ${signal.reason}<br>
+                        <div class="signal-confirmations">
+                            Confirmations: ${confirmationBadges}
+                        </div>
+                        <small>${new Date(signal.timestamp).toLocaleTimeString()}</small>
+                    </div>
+                `;
+            }).join('');
         }
         
         function updateConfig() {
@@ -457,6 +807,24 @@
             .then(data => console.log('Config updated:', data))
             .catch(error => console.error('Error:', error));
         }
+
+        function updateDeltaConfig() {
+            const config = {
+                enable_delta_confirmation: document.getElementById('enable-delta').checked,
+                delta_weight: parseFloat(document.getElementById('delta-weight').value),
+                delta_strong_threshold: parseFloat(document.getElementById('delta-strong-threshold').value),
+                delta_moderate_threshold: parseFloat(document.getElementById('delta-moderate-threshold').value)
+            };
+            
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => console.log('Delta config updated:', data))
+            .catch(error => console.error('Error:', error));
+        }
         
         // Load current config
         fetch('/api/config')
@@ -468,10 +836,18 @@
                 document.getElementById('persistence-seconds').value = config.persistence_seconds || 3.0;
                 document.getElementById('cooldown-seconds').value = config.cooldown_seconds || 30.0;
                 document.getElementById('min-confidence').value = config.min_confidence || 0.7;
+                
+                document.getElementById('enable-delta').checked = config.enable_delta_confirmation || true;
+                document.getElementById('delta-weight').value = config.delta_weight || 0.4;
+                document.getElementById('delta-strong-threshold').value = config.delta_strong_threshold || 0.7;
+                document.getElementById('delta-moderate-threshold').value = config.delta_moderate_threshold || 0.4;
             });
         
-        // Initialize
-        initializeSSE();
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            initializeSSE();
+        });
     </script>
 </body>
 </html>

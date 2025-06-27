@@ -3,7 +3,7 @@ name = "trading-bot"
 version = "0.2.0"
 description = "Trading strategy backtesting framework with ClickHouse"
 authors = ["Majdoub Khalid <majdoub.khalid@gmail.com>"]
-packages = [{include = "trading_bot", from = "src"}, { include = "ob_trading", from = "src"}]
+packages = [{include = "trading_bot", from = "src"}, { include = "ob_trading", from = "src"}, { include = "bybit_trading_helper", from = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
@@ -25,6 +25,8 @@ psutil = "^7.0.0"
 websockets = "^15.0.1"
 flask = "^3.1.1"
 flask-cors = "^6.0.1"
+pybit = "^5.11.0"
+flask-socketio = "^5.5.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"

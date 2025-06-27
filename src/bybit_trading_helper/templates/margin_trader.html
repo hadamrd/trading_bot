@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Margin Risk Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        function selectSide(side) {
+            selectedSide = side;
+            document.querySelectorAll('.side-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(side === 'Buy' ? 'long-btn' : 'short-btn').classList.add('active');
+            updateRiskInfo();
+        }
+        
+        function updateLeverage() {
+            const leverage = document.getElementById('leverage').value;
+            document.getElementById('leverage-display').textContent = leverage + 'x';
+            updateRiskInfo();
+        }
+        
+        body {
+            background: #0a0a0f;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .trading-panel {
+            background: rgba(20, 20, 30, 0.9);
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #00ffff;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        
+        .balance {
+            color: #00ff00;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            color: #cccccc;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        
+        .ticker-input {
+            width: 100%;
+            padding: 15px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 5px;
+            color: #ffffff;
+            font-size: 1.2rem;
+            text-align: center;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        
+        .ticker-input:focus {
+            outline: none;
+            border-color: #00ffff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        
+        .current-price {
+            text-align: center;
+            color: #ffff00;
+            font-size: 1.1rem;
+            margin: 10px 0;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .price-change {
+            font-size: 0.9rem;
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        
+        .price-up {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+        }
+        
+        .price-down {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff0000;
+        }
+        
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .side-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .side-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        
+        .side-btn.long {
+            background: #004d00;
+            color: #00ff00;
+            border: 2px solid #00ff00;
+        }
+        
+        .side-btn.short {
+            background: #4d0000;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+        }
+        
+        .side-btn.active {
+            transform: scale(0.95);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+        
+        .params-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .param-input {
+            width: 100%;
+            padding: 12px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 5px;
+            color: #ffffff;
+            font-size: 1rem;
+            text-align: center;
+        }
+        
+        .param-input:focus {
+            outline: none;
+            border-color: #00ffff;
+        }
+        
+        .leverage-container {
+            margin-bottom: 25px;
+        }
+        
+        .leverage-slider {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 5px;
+            outline: none;
+            margin: 10px 0;
+        }
+        
+        .leverage-value {
+            text-align: center;
+            color: #ffff00;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .risk-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-left: 4px solid #00ffff;
+        }
+        
+        .risk-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .risk-label {
+            color: #cccccc;
+        }
+        
+        .risk-value {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        
+        .risk-good {
+            color: #00ff00;
+        }
+        
+        .risk-bad {
+            color: #ff0000;
+        }
+        
+        .trade-button {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(45deg, #ff6b00, #ff8500);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1.4rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .trade-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 0, 0.4);
+        }
+        
+        .trade-button:disabled {
+            background: #333;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .status.success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+        }
+        
+        .status.error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000;
+            color: #ff0000;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00ffff;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="trading-panel">
+        <div class="header">
+            <h1>⚡ MARGIN RISK MANAGER</h1>
+            <div class="balance">Balance: ${{ "%.2f"|format(balance) }} USDT</div>
+        </div>
+        
+        <div class="input-group">
+            <label>Ticker Symbol</label>
+            <input type="text" id="ticker" class="ticker-input" value="APTUSDT" oninput="updateTicker()">
+            <div id="current-price" class="current-price">
+                <div class="live-indicator" id="live-indicator"></div>
+                <span id="price-value">Connecting...</span>
+                <span id="price-change" class="price-change"></span>
+            </div>
+            <div id="connection-status" style="text-align: center; font-size: 0.8rem; color: #888; margin-top: 5px;">
+                Connecting to price feed...
+            </div>
+        </div>
+        
+        <div class="side-buttons">
+            <button class="side-btn long" id="long-btn" onclick="selectSide('Buy')">🚀 LONG</button>
+            <button class="side-btn short" id="short-btn" onclick="selectSide('Sell')">📉 SHORT</button>
+        </div>
+        
+        <div class="leverage-container">
+            <label>Leverage: <span id="leverage-display" class="leverage-value">10x</span></label>
+            <input type="range" id="leverage" class="leverage-slider" min="1" max="50" value="10" oninput="updateLeverage()">
+        </div>
+        
+        <div class="params-grid">
+            <div class="input-group">
+                <label>Stop Loss %</label>
+                <input type="number" id="sl-percent" class="param-input" value="2" step="0.1" oninput="updateRiskInfo()">
+            </div>
+            <div class="input-group">
+                <label>Take Profit %</label>
+                <input type="number" id="tp-percent" class="param-input" value="4" step="0.1" oninput="updateRiskInfo()">
+            </div>
+            <div class="input-group">
+                <label>Risk % of Balance</label>
+                <input type="number" id="risk-percent" class="param-input" value="2" step="0.1" min="0.1" max="10" oninput="updateRiskInfo()">
+            </div>
+        </div>
+        
+        <div class="risk-info" id="risk-info">
+            <div class="risk-row">
+                <span class="risk-label">Risk/Reward Ratio:</span>
+                <span class="risk-value" id="rr-ratio">1:2</span>
+            </div>
+            <div class="risk-row">
+                <span class="risk-label">Risk Amount:</span>
+                <span class="risk-value" id="risk-amount">$0</span>
+            </div>
+            <div class="risk-row">
+                <span class="risk-label">Position Size:</span>
+                <span class="risk-value" id="position-size">0</span>
+            </div>
+            <div class="risk-row">
+                <span class="risk-label">Position Value:</span>
+                <span class="risk-value" id="position-value">$0</span>
+            </div>
+        </div>
+        
+        <button class="trade-button" id="trade-btn" onclick="executeTrade()">
+            EXECUTE TRADE
+        </button>
+        
+        <div class="status" id="status"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        let selectedSide = null;
+        let currentPrice = 0;
+        const balance = {{ balance }};
+        let socket;
+        
+        // Initialize SocketIO connection
+        function initWebSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('Connected to price feed');
+                // Subscribe to initial ticker
+                const ticker = document.getElementById('ticker').value.toUpperCase();
+                socket.emit('subscribe_ticker', {symbol: ticker});
+            });
+            
+            socket.on('price_update', function(data) {
+                const currentTicker = document.getElementById('ticker').value.toUpperCase();
+                if (data.symbol === currentTicker) {
+                    currentPrice = data.price;
+                    updatePriceDisplay(data.price, data.change_24h);
+                    updateRiskInfo();
+                }
+            });
+            
+            socket.on('subscribed', function(data) {
+                console.log('Subscribed to', data.symbol);
+            });
+        }
+        
+        function updatePriceDisplay(price, change24h) {
+            document.getElementById('price-value').textContent = `${price.toFixed(4)}`;
+            
+            const changeElement = document.getElementById('price-change');
+            changeElement.textContent = `${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`;
+            changeElement.className = `price-change ${change24h >= 0 ? 'price-up' : 'price-down'}`;
+        }
+        
+        function updateTicker() {
+            const ticker = document.getElementById('ticker').value.toUpperCase();
+            if (ticker.length >= 3 && socket) {
+                socket.emit('subscribe_ticker', {symbol: ticker});
+                document.getElementById('price-value').textContent = 'Loading...';
+                updateRiskInfo();
+            }
+        }
+        
+        function updateRiskInfo() {
+            if (!currentPrice || !selectedSide) return;
+            
+            const slPercent = parseFloat(document.getElementById('sl-percent').value);
+            const tpPercent = parseFloat(document.getElementById('tp-percent').value);
+            const riskPercent = parseFloat(document.getElementById('risk-percent').value);
+            const leverage = parseInt(document.getElementById('leverage').value);
+            
+            // Calculate SL and TP prices
+            let slPrice, tpPrice;
+            if (selectedSide === 'Buy') {
+                slPrice = currentPrice * (1 - slPercent / 100);
+                tpPrice = currentPrice * (1 + tpPercent / 100);
+            } else {
+                slPrice = currentPrice * (1 + slPercent / 100);
+                tpPrice = currentPrice * (1 - tpPercent / 100);
+            }
+            
+            // Calculate risk/reward ratio
+            const riskDistance = Math.abs(currentPrice - slPrice);
+            const rewardDistance = Math.abs(tpPrice - currentPrice);
+            const rrRatio = rewardDistance / riskDistance;
+            
+            // Calculate position sizing
+            const riskAmount = balance * (riskPercent / 100);
+            const priceChange = Math.abs(currentPrice - slPrice) / currentPrice;
+            const positionValue = riskAmount / priceChange;
+            const positionSize = positionValue / currentPrice;
+            
+            // Update display
+            document.getElementById('rr-ratio').textContent = `1:${rrRatio.toFixed(2)}`;
+            document.getElementById('rr-ratio').className = `risk-value ${rrRatio >= 2 ? 'risk-good' : 'risk-bad'}`;
+            
+            document.getElementById('risk-amount').textContent = `$${riskAmount.toFixed(2)}`;
+            document.getElementById('position-size').textContent = positionSize.toFixed(6);
+            document.getElementById('position-value').textContent = `$${positionValue.toFixed(2)}`;
+        }
+        
+        async function executeTrade() {
+            if (!selectedSide) {
+                showStatus('Please select Long or Short', 'error');
+                return;
+            }
+            
+            const tradeBtn = document.getElementById('trade-btn');
+            tradeBtn.disabled = true;
+            tradeBtn.innerHTML = '<div class="loading"></div> EXECUTING...';
+            
+            const tradeData = {
+                symbol: document.getElementById('ticker').value.toUpperCase(),
+                side: selectedSide,
+                leverage: parseInt(document.getElementById('leverage').value),
+                sl_percent: parseFloat(document.getElementById('sl-percent').value),
+                tp_percent: parseFloat(document.getElementById('tp-percent').value),
+                risk_percent: parseFloat(document.getElementById('risk-percent').value)
+            };
+            
+            try {
+                const response = await fetch('/place_trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tradeData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showStatus(`
+                        ✅ TRADE EXECUTED!<br>
+                        ${result.side} ${result.symbol} ${result.leverage}x<br>
+                        Entry: $${result.entry_price.toFixed(4)}<br>
+                        SL: $${result.sl_price.toFixed(4)} | TP: $${result.tp_price.toFixed(4)}<br>
+                        Risk: $${result.risk_amount.toFixed(2)} | R:R = 1:${result.risk_reward_ratio}
+                    `, 'success');
+                } else {
+                    showStatus(`❌ ERROR: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ ERROR: ${error.message}`, 'error');
+            }
+            
+            tradeBtn.disabled = false;
+            tradeBtn.innerHTML = 'EXECUTE TRADE';
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.innerHTML = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 10000);
+        }
+        
+        // Initialize everything
+        function init() {
+            initWebSocket();
+            selectSide('Sell'); // Default to short
+        }
+        
+        // Start when page loads
+        window.onload = init;
+    </script>
+</body>
+</html>

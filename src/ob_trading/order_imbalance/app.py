@@ -12,7 +12,7 @@ from flask import Flask, render_template, Response, jsonify, request
 from flask_cors import CORS
 
 from ob_trading.order_imbalance.producer import BinanceProducer
-from ob_trading.order_imbalance.signal_processor import SmartSignalProcessor, TradingSignal
+from ob_trading.order_imbalance.advanced_signal_processor import AdvancedSignalProcessor, TradingSignal
 
 
 app = Flask(__name__)
@@ -29,7 +29,7 @@ class DashboardOrchestrator:
         
         # Initialize components
         self.producer = BinanceProducer(symbol)
-        self.signal_processor = SmartSignalProcessor(symbol)
+        self.signal_processor = AdvancedSignalProcessor(symbol)
         
         # Dashboard state
         self.dashboard_data = {
@@ -112,11 +112,13 @@ class DashboardOrchestrator:
             'type': signal.signal_type,
             'symbol': signal.symbol,
             'price': signal.price,
-            'strength': signal.strength,
-            'confidence': signal.confidence,
+            'strength': signal.signal_strength,
+            'confidence': signal.overall_confidence,  # FIX: was signal.confidence
             'reason': signal.reason,
             'duration': signal.duration,
-            'metadata': signal.metadata
+            'confirmations': signal.confirmations,
+            'recommended_position_size': signal.recommended_position_size,
+            'suggested_hold_time': signal.suggested_hold_time
         }
         
         # Add to signals list (keep last 50)
@@ -125,8 +127,8 @@ class DashboardOrchestrator:
         
         # Log the signal
         print(f"🚨 {signal.signal_type} | ${signal.price:.4f} | "
-              f"Confidence: {signal.confidence:.1%} | "
-              f"Duration: {signal.duration:.1f}s")
+            f"Confidence: {signal.overall_confidence:.1%} | "
+            f"Duration: {signal.duration:.1f}s")
         
         # Notify SSE clients immediately
         self._notify_sse_clients()
@@ -244,14 +246,22 @@ def config():
         orchestrator.update_config(new_config)
         return jsonify({'status': 'updated', 'config': new_config})
     else:
-        # Return current signal processor config
+        # Return current AdvancedSignalProcessor config (FIXED ATTRIBUTE NAMES)
         return jsonify({
             'strong_threshold': orchestrator.signal_processor.strong_imbalance_threshold,
             'moderate_threshold': orchestrator.signal_processor.moderate_imbalance_threshold,
             'wall_threshold': orchestrator.signal_processor.large_wall_threshold,
             'persistence_seconds': orchestrator.signal_processor.min_persistence_seconds,
             'cooldown_seconds': orchestrator.signal_processor.signal_cooldown_seconds,
-            'min_confidence': orchestrator.signal_processor.min_confidence
+            'min_confidence': orchestrator.signal_processor.min_overall_confidence,  # FIXED: was min_confidence
+            
+            # NEW: Delta integration settings
+            'enable_delta_confirmation': orchestrator.signal_processor.enable_delta_confirmation,
+            'delta_weight': orchestrator.signal_processor.delta_weight,
+            
+            # NEW: Risk management settings  
+            'max_position_size': orchestrator.signal_processor.max_position_size,
+            'base_hold_time': orchestrator.signal_processor.base_hold_time
         })
 
 @app.route('/api/signals/recent')
