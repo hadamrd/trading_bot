@@ -18,3 +18,4 @@ Training/Logs
 **/.env
 .env
 poetry.lock
+**/node_modules
