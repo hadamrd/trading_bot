@@ -1,47 +1,33 @@
-#!/usr/bin/env python3
-"""
-Test AI Trade Validation with Real Data
-Shows how to integrate AI validation with existing trading strategy
-"""
-
-import sys
-import os
 import asyncio
-from pathlib import Path
-
-from trading_bot.strategies.adaptive_multi_ai_assisted.ai_enhanced_strategy import AIEnhancedStrategy
-from trading_bot.strategies.adaptive_multi_ai_assisted.trade_validation_agent import TradeValidationAgent
-
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 from datetime import datetime, timedelta
-from decimal import Decimal
-import pandas as pd
 
-# Import existing trading components
-from trading_bot.data.market_data import MarketDataManager
 from trading_bot.core.enums import TimeFrame
-from trading_bot.strategies.adaptive_multi import AdaptiveMultiStrategy
+from trading_bot.data.market_data import MarketDataManager
+from trading_bot.strategies.adaptive_multi_ai_assisted.ai_enhanced_strategy import AIEnhancedStrategy
+from trading_bot.strategies.adaptive_multi_ai_assisted.validation_agent import TradeValidationAgent
+from trading_bot.strategies.scalping_adaptive import ScalpingAdaptiveStrategy
 
 
-async def test_ai_validation_integration():
-    """Test AI validation with real market data and existing strategy"""
+async def test_structured_ai_validation():
+    """Test the new structured AI validation system"""
     
-    print("🤖 Testing AI Trade Validation Integration")
-    print("🔬 Real data + Real strategy + AI validation")
+    print("🤖 Testing AI Trade Validation with Structured Actions")
+    print("🔬 Real data + Real strategy + Structured AI validation")
     print("=" * 60)
     
     # Initialize data manager
     print("📊 Loading market data...")
     data_manager = MarketDataManager()
     
-    symbol = "BTCUSDT"
+    symbol = "SOLUSDT"
     timeframe = TimeFrame.FIVE_MINUTES
     
     # Get recent data
     end_date = datetime.now()
-    start_date = end_date - timedelta(hours=24)  # Last 24 hours
+    start_date = end_date - timedelta(hours=7 * 24)
+    
+    dm = MarketDataManager()
+    count = dm.download_and_store(symbol, timeframe, 7)
     
     df = data_manager.get_data_for_backtest(
         symbol=symbol,
@@ -53,36 +39,39 @@ async def test_ai_validation_integration():
     
     if df.empty:
         print("❌ No data available. Download data first:")
-        print("   python scripts/download_data.py --symbol BTCUSDT --timeframe 5m")
+        print(f"   python scripts/download_data.py --symbol {symbol} --timeframe 5m")
         return
     
     print(f"✅ Loaded {len(df):,} candles from {df.index[0]} to {df.index[-1]}")
     
-    # Create base strategy
-    print("⚙️  Initializing adaptive strategy...")
-    base_strategy = AdaptiveMultiStrategy(
-        lookback_period=50,
-        volatility_lookback=200,
-        base_position_size=0.02
+    # Create scalping strategy
+    print("⚙️  Initializing scalping strategy...")
+    base_strategy = ScalpingAdaptiveStrategy(
+        ema_fast=3,
+        ema_slow=8,
+        rsi_period=7,
+        mr_rsi_oversold=50,
+        mr_bb_lower=0.4,
+        trend_volume_min=0.5,
+        base_position_size=0.005
     )
     
     # Prepare data with indicators
     df = base_strategy.prepare_data(df)
     print(f"🔢 Calculated technical indicators")
     
-    # Create AI-enhanced strategy
-    print("🧠 Initializing AI validation layer...")
+    # Create structured AI-enhanced strategy
+    print("🧠 Initializing structured AI validation layer...")
     ai_strategy = AIEnhancedStrategy(
         base_strategy=base_strategy,
-        use_ai_validation=True,
-        ai_threshold_confidence=6
+        ai_confidence_threshold=6
     )
     
     # Test on recent candles
     print(f"\n🔍 Testing on recent market data...")
     test_signals = []
     
-    # Look for signals in recent data
+    # Look for signals in recent data  
     for i in range(len(df) - 50, len(df) - 1):
         if i <= 0:
             continue
@@ -91,7 +80,7 @@ async def test_ai_validation_integration():
         prev_row = df.iloc[i-1]
         
         try:
-            # Test both base strategy and AI-enhanced strategy
+            # Test base strategy signal
             base_signal = base_strategy.buy_condition(row, prev_row)
             
             if base_signal[0]:  # If base strategy finds a signal
@@ -99,11 +88,11 @@ async def test_ai_validation_integration():
                 print(f"   💰 Price: ${row['close']:,.2f}")
                 print(f"   🤖 Algorithm: {base_signal[1]}")
                 
-                # Get AI validation
+                # Get structured AI validation
                 try:
-                    ai_signal = await ai_strategy.buy_condition(row, prev_row, df, i)
+                    ai_signal = await ai_strategy.buy_condition_with_ai(row, prev_row, df, i)
                     
-                    print(f"   🧠 AI Decision: {ai_signal[1] if ai_signal[0] else 'REJECTED'}")
+                    print(f"   🧠 AI Decision: {ai_signal[1] if ai_signal[0] else ai_signal[1]}")
                     
                     # Store for analysis
                     test_signals.append({
@@ -152,88 +141,69 @@ async def test_ai_validation_integration():
         print("   • Strategy parameters are conservative")
         print("   • Try testing on more volatile periods")
     
-    # Show AI stats
+    # Show detailed AI stats
     ai_strategy.print_ai_stats()
     
-    return test_signals
-
-
-async def quick_ai_test():
-    """Quick test of AI validation without full data"""
-    
-    print("\n🚀 Quick AI Validation Test")
+    # Test quick structured validation
+    print(f"\n🚀 Quick Structured AI Validation Test")
     print("=" * 30)
-    
-    
     try:
-        # Initialize AI validator
-        ai_validator = TradeValidationAgent()
-        
-        # Test quick validation
-        response = await ai_validator.quick_validate(
-            symbol="BTCUSDT",
+        agent = TradeValidationAgent()
+        result = await agent.quick_validate_with_actions(
+            symbol="SOLUSDT",
             signal_reason="[RANGING] Mean Reversion Oversold",
-            current_price=107250.0,
-            rsi=28.5,
-            volume_ratio=1.8,
+            current_price=149.65,
+            rsi=33.2,
+            volume_ratio=0.9,
             regime="ranging"
         )
         
-        print(f"🧠 AI Validation Result:")
-        print(f"   Decision: {response.decision.value}")
-        print(f"   Confidence: {response.confidence}/10")
-        print(f"   Reasoning: {response.primary_reasoning}")
-        print(f"   Risk Level: {response.risk_level.value}")
-        print(f"   Technical Quality: {response.technical_quality.value}")
-        
-        if response.risk_factors:
-            print(f"   Risk Factors: {', '.join(response.risk_factors)}")
-        
-        if response.suggested_modifications:
-            print(f"   Suggestions: {response.suggested_modifications}")
-        
-        print(f"✅ AI quick test completed!")
-        
+        if result['processing_successful']:
+            ai_rec = result['ai_recommendation']
+            modified_params = result['modified_params']
+            
+            print(f"🧠 Structured AI Result:")
+            print(f"   Decision: {ai_rec.decision}")
+            print(f"   Confidence: {ai_rec.confidence}/10")
+            print(f"   Risk Level: {ai_rec.risk_level}")
+            print(f"   Actions: {len(ai_rec.recommended_actions)}")
+            
+            print(f"\n📊 Recommended Actions:")
+            for i, action in enumerate(ai_rec.recommended_actions, 1):
+                print(f"      {i}. {action.action_type}: {getattr(action, 'reasoning', 'No reasoning provided')}")
+            
+            print(f"\n⚙️  Applied Modifications:")
+            for mod in modified_params.get('modifications_applied', []):
+                print(f"      • {mod}")
+            
+            print(f"\n💰 Trade Parameters:")
+            print(f"      Original Entry: ${result['original_params']['entry_price']:.2f}")
+            print(f"      Modified Entry: ${modified_params['entry_price']:.2f}")
+            print(f"      Original Stop: {result['original_params']['stop_loss_pct']:.3f}")
+            print(f"      Modified Stop: {modified_params['stop_loss_pct']:.3f}")
+            print(f"      Original Size: ${result['original_params']['position_size']:.2f}")
+            print(f"      Modified Size: ${modified_params['position_size']:.2f}")
+            print(f"      Should Execute: {'✅ YES' if modified_params['should_execute'] else '❌ NO'}")
+        else:
+            print(f"❌ Structured validation failed: {result.get('error', 'Unknown error')}")
+            
     except Exception as e:
-        print(f"❌ AI test failed: {e}")
-        print(f"💡 Make sure you have Claude API key configured")
-
-
-async def compare_with_without_ai():
-    """Compare strategy performance with and without AI validation"""
+        print(f"❌ Quick test failed: {e}")
     
-    print(f"\n📊 COMPARISON: With vs Without AI")
-    print("=" * 40)
-    print(f"This would show:")
-    print(f"   📈 Win rate improvement")
-    print(f"   💰 Return enhancement") 
-    print(f"   📉 Drawdown reduction")
-    print(f"   🎯 Signal quality improvement")
-    print(f"")
-    print(f"💡 To implement:")
-    print(f"   1. Run backtest with base strategy")
-    print(f"   2. Run backtest with AI-enhanced strategy")
-    print(f"   3. Compare results")
+    return test_signals
 
 
 if __name__ == "__main__":
     async def main():
         try:
-            # Test AI integration with real data
-            signals = await test_ai_validation_integration()
-            
-            # Quick AI test
-            await quick_ai_test()
-            
-            # Show comparison concept
-            await compare_with_without_ai()
+            signals = await test_structured_ai_validation()
             
             print(f"\n✅ All tests completed!")
             print(f"💡 Next steps:")
-            print(f"   1. Configure Claude API key in your settings")
-            print(f"   2. Run full backtest comparison")
-            print(f"   3. Tune AI confidence thresholds")
-            print(f"   4. Monitor AI validation performance")
+            print(f"   1. Review AI action recommendations")
+            print(f"   2. Implement trade parameter modifications")
+            print(f"   3. Run backtests with AI-modified parameters")
+            print(f"   4. Monitor AI action effectiveness")
             
         except KeyboardInterrupt:
             print(f"\n🛑 Tests interrupted")

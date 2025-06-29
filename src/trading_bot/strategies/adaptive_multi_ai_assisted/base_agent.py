@@ -131,7 +131,7 @@ class BaseAgent(ABC):
         try:
             result = await self.client.chat.completions.create(
                 model=self.model,
-                max_tokens=500,
+                max_tokens=1000,
                 temperature=0.3,
                 system=self.system_message,
                 messages=[{"role": "user", "content": prompt}],

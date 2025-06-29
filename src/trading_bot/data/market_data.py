@@ -34,7 +34,6 @@ class MarketDataManager:
 
         try:
             # Check if ClickHouse dependencies are available
-            import clickhouse_connect
             from .clickhouse_storage import ClickHouseStorage
             
             # Initialize ClickHouse storage

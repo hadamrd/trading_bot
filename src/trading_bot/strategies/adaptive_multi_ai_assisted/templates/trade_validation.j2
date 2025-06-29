@@ -5,52 +5,132 @@
 
 ## 🤖 ALGORITHMIC SIGNAL
 - **Signal**: {{ request.signal_reason }}
-- **Entry Price**: ${{ "%.2f"|format(request.proposed_entry_price) }}
-- **Stop Loss**: ${{ "%.2f"|format(request.proposed_stop_loss) }} ({{ "%.2f"|format(((request.proposed_stop_loss / request.proposed_entry_price) - 1) * 100) }}%)
-- **Position Size**: ${{ "%.2f"|format(request.proposed_position_size) }}
-- **Algorithm Confidence**: {{ "%.1f"|format(request.strategy_confidence * 100) }}%
+- **Entry Price**: ${{ "{:.2f}".format(request.proposed_entry_price) }}
+{% if request.proposed_stop_loss and request.proposed_entry_price %}
+- **Stop Loss**: ${{ "{:.2f}".format(request.proposed_stop_loss) }} ({{ "{:.2f}".format(((request.proposed_stop_loss / request.proposed_entry_price) - 1) * 100) }}%)
+{% else %}
+- **Stop Loss**: Not specified
+{% endif %}
+- **Position Size**: ${{ "{:.2f}".format(request.proposed_position_size) }}
+{% if request.strategy_confidence is not none %}
+- **Algorithm Confidence**: {{ "{:.1f}".format(request.strategy_confidence * 100) }}%
+{% endif %}
 
 ## 📊 CURRENT MARKET CONTEXT
 
 ### Price Action
-- **Current Price**: ${{ "{:,.2f}"|format(request.context.current_price) }}
-- **1h Change**: {{ "%.2f"|format(request.context.price_change_1h * 100) }}%
-{% if request.context.price_change_24h != 0 -%}
-- **24h Change**: {{ "%.2f"|format(request.context.price_change_24h * 100) }}%
+{% if request.context.current_price %}
+- **Current Price**: ${{ "{:,.2f}".format(request.context.current_price) }}
+{% endif %}
+{% if request.context.price_change_1h is not none %}
+- **1h Change**: {{ "{:.2f}".format(request.context.price_change_1h) }}%
+{% endif %}
+{% if request.context.price_change_24h is not none and request.context.price_change_24h != 0 %}
+- **24h Change**: {{ "{:.2f}".format(request.context.price_change_24h) }}%
 {% endif %}
 
 ### Technical Indicators
-- **RSI**: {{ "%.1f"|format(request.context.rsi_level) }} {% if request.context.rsi_level < 30 %}(OVERSOLD){% elif request.context.rsi_level > 70 %}(OVERBOUGHT){% else %}(NEUTRAL){% endif %}
-- **Volume**: {{ "%.1f"|format(request.context.volume_vs_average) }}x average {% if request.context.volume_vs_average > 2.0 %}(HIGH){% elif request.context.volume_vs_average < 0.8 %}(LOW){% else %}(NORMAL){% endif %}
-- **Volatility**: {{ "%.0f"|format(request.context.volatility_percentile * 100) }}th percentile {% if request.context.volatility_percentile > 0.8 %}(EXTREME){% elif request.context.volatility_percentile > 0.6 %}(HIGH){% elif request.context.volatility_percentile < 0.3 %}(LOW){% else %}(NORMAL){% endif %}
+{% if request.context.rsi_level is not none %}
+- **RSI**: {{ "{:.1f}".format(request.context.rsi_level) }} {% if request.context.rsi_level < 30 %}(OVERSOLD){% elif request.context.rsi_level > 70 %}(OVERBOUGHT){% else %}(NEUTRAL){% endif %}
+{% endif %}
+{% if request.context.volume_vs_average is not none %}
+- **Volume**: {{ "{:.1f}".format(request.context.volume_vs_average) }}x average {% if request.context.volume_vs_average > 2.0 %}(HIGH){% elif request.context.volume_vs_average < 0.8 %}(LOW){% else %}(NORMAL){% endif %}
+{% endif %}
+{% if request.context.volatility_percentile is not none %}
+- **Volatility**: {{ "{:.0f}".format(request.context.volatility_percentile * 100) }}th percentile {% if request.context.volatility_percentile > 0.8 %}(EXTREME){% elif request.context.volatility_percentile > 0.6 %}(HIGH){% elif request.context.volatility_percentile < 0.3 %}(LOW){% else %}(NORMAL){% endif %}
+{% endif %}
 
 ### Market Regime
+{% if request.context.detected_regime %}
 - **Detected Regime**: {{ request.context.detected_regime.upper() }}
+{% endif %}
+{% if request.context.volatility_mood %}
 - **Volatility Mood**: {{ request.context.volatility_mood.upper() }}
+{% endif %}
 
 ### Key Technical Levels
-- **Support**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.support) }}
-- **Resistance**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.resistance) }}
-- **Recent High**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.recent_high) }}
-- **Recent Low**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.recent_low) }}
-- **Pivot Point**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.pivot) }}
+{% if request.context.key_technical_levels %}
+{% if request.context.key_technical_levels.get('support') %}
+- **Support**: ${{ "{:,.2f}".format(request.context.key_technical_levels.support) }}
+{% endif %}
+{% if request.context.key_technical_levels.get('resistance') %}
+- **Resistance**: ${{ "{:,.2f}".format(request.context.key_technical_levels.resistance) }}
+{% endif %}
+{% if request.context.key_technical_levels.get('recent_high') %}
+- **Recent High**: ${{ "{:,.2f}".format(request.context.key_technical_levels.recent_high) }}
+{% endif %}
+{% if request.context.key_technical_levels.get('recent_low') %}
+- **Recent Low**: ${{ "{:,.2f}".format(request.context.key_technical_levels.recent_low) }}
+{% endif %}
+{% if request.context.key_technical_levels.get('pivot') %}
+- **Pivot Point**: ${{ "{:,.2f}".format(request.context.key_technical_levels.pivot) }}
+{% endif %}
+{% endif %}
+
+## 📈 RECENT PRICE ACTION HISTORY
+
+{% if request.recent_candles and request.recent_candles|length > 0 %}
+**Last {{ request.recent_candles|length }} Candles** ({{ request.timeframe }} timeframe):
+
+| Time | Open | High | Low | Close | Volume | RSI | Change% |
+|------|------|------|-----|-------|--------|-----|---------|
+{% for candle in request.recent_candles %}
+| {{ candle.timestamp }} | ${{ "{:,.2f}".format(candle.open) }} | ${{ "{:,.2f}".format(candle.high) }} | ${{ "{:,.2f}".format(candle.low) }} | ${{ "{:,.2f}".format(candle.close) }} | {{ "{:,.0f}".format(candle.volume) }} | {% if candle.rsi is not none %}{{ "{:.1f}".format(candle.rsi) }}{% else %}N/A{% endif %} | {% if candle.change_pct is not none %}{{ "{:+.2f}".format(candle.change_pct) }}%{% else %}N/A{% endif %} |
+{% endfor %}
+
+### Price Action Summary:
+{% set latest_candle = request.recent_candles[-1] %}
+{% set oldest_candle = request.recent_candles[0] %}
+{% if latest_candle.close and oldest_candle.close %}
+{% set price_change = ((latest_candle.close - oldest_candle.close) / oldest_candle.close) * 100 %}
+- **Period Change**: {{ "{:+.2f}".format(price_change) }}% (from ${{ "{:,.2f}".format(oldest_candle.close) }} to ${{ "{:,.2f}".format(latest_candle.close) }})
+- **Trend Direction**: {% if price_change > 0.5 %}BULLISH{% elif price_change < -0.5 %}BEARISH{% else %}SIDEWAYS{% endif %}
+{% endif %}
+
+{% set high_prices = request.recent_candles | selectattr('high') | map(attribute='high') | list %}
+{% set low_prices = request.recent_candles | selectattr('low') | map(attribute='low') | list %}
+{% if high_prices and low_prices %}
+- **Recent Range**: ${{ "{:,.2f}".format(low_prices | min) }} - ${{ "{:,.2f}".format(high_prices | max) }}
+{% endif %}
+
+### Volume Analysis:
+{% set volumes = request.recent_candles | selectattr('volume') | map(attribute='volume') | list %}
+{% if volumes %}
+{% set avg_volume = (volumes | sum) / (volumes | length) %}
+{% set latest_volume = latest_candle.volume %}
+- **Average Volume**: {{ "{:,.0f}".format(avg_volume) }}
+- **Latest Volume**: {{ "{:,.0f}".format(latest_volume) }} ({{ "{:.1f}".format(latest_volume / avg_volume) }}x average)
+- **Volume Trend**: {% if latest_volume > avg_volume * 1.5 %}INCREASING{% elif latest_volume < avg_volume * 0.7 %}DECREASING{% else %}STABLE{% endif %}
+{% endif %}
+
+{% else %}
+**No recent candle data available**
+{% endif %}
 
 ## ⏰ TIMING CONTEXT
+{% if request.context.market_hours %}
 - **Market Session**: {{ request.context.market_hours.title() }}
+{% endif %}
+{% if request.context.day_of_week %}
 - **Day**: {{ request.context.day_of_week }}
+{% endif %}
 
 ## 📈 RECENT SIMILAR TRADES
-{% if request.recent_similar_trades %}
+{% if request.recent_similar_trades and request.recent_similar_trades|length > 0 %}
 {% for trade in request.recent_similar_trades %}
-- **{{ trade.signal }}**: {{ trade.outcome }} ({{ "%.1f"|format(trade.return_pct) }}% return, {{ trade.duration_min }}min)
+- **{{ trade.get('signal', 'Unknown') }}**: {{ trade.get('outcome', 'Unknown') }} ({{ "{:.1f}".format(trade.get('return_pct', 0)) }}% return, {{ trade.get('duration_min', 0) }}min)
 {% endfor %}
 {% else %}
 - No recent similar trades in history
 {% endif %}
 
 ## 💼 PORTFOLIO CONTEXT
-- **Current Exposure**: {{ "%.1f"|format(request.current_portfolio_exposure * 100) }}%
-- **Risk per Trade**: {{ "%.2f"|format(((request.proposed_entry_price - request.proposed_stop_loss) / request.proposed_entry_price) * 100) }}% of position
+{% if request.current_portfolio_exposure is not none %}
+- **Current Exposure**: {{ "{:.1f}".format(request.current_portfolio_exposure * 100) }}%
+{% endif %}
+{% if request.proposed_entry_price and request.proposed_stop_loss %}
+- **Risk per Trade**: {{ "{:.2f}".format(((request.proposed_entry_price - request.proposed_stop_loss) / request.proposed_entry_price) * 100) }}% of position
+{% endif %}
 
 ---
 
@@ -60,16 +140,19 @@ Analyze this trading signal with your expertise and provide a structured assessm
 
 ### Key Questions to Consider:
 1. **Technical Setup**: Are the indicators properly aligned for this signal type?
-2. **Market Timing**: Is this good timing given current market conditions?
-3. **Risk/Reward**: Does the setup offer favorable risk/reward potential?
-4. **Context Clues**: What might the algorithm be missing?
-5. **Execution**: Any improvements to entry, stops, or position size?
+2. **Price Action**: Does the recent candle pattern support this signal?
+3. **Market Timing**: Is this good timing given current market conditions?
+4. **Risk/Reward**: Does the setup offer favorable risk/reward potential?
+5. **Context Clues**: What might the algorithm be missing from the price action?
+6. **Execution**: Any improvements to entry, stops, or position size?
 
 ### Focus Areas:
-- **Signal Quality**: How strong is the technical setup?
+- **Signal Quality**: How strong is the technical setup based on recent price action?
+- **Price Pattern**: What does the recent candle pattern tell us?
+- **Volume Confirmation**: Does volume support the signal?
 - **Market Environment**: Does current regime favor this type of trade?
 - **Risk Factors**: What are the main ways this trade could fail?
-- **Timing**: Is this the right moment, or should we wait?
+- **Timing**: Is this the right moment, or should we wait for better price action?
 - **Improvements**: Any modifications that would improve the trade?
 
 Provide your assessment using the structured format with specific, actionable insights.

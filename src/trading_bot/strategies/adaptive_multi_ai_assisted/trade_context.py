@@ -6,7 +6,7 @@ Extracts comprehensive market context for AI validation
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from .trade_validation import ContextSummary, ValidationRequest, CandleData
