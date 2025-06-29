@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     log_file: str | None = Field(default=None, env="LOG_FILE")
+    
+    claude_api_key: str | None = Field(default=None, env="CLAUDE_API_KEY")
+    claude_model: str = Field(default="claude-3-7-sonnet-20250219", env="CLAUDE_MODEL")
 
     class Config:
         """Pydantic config."""

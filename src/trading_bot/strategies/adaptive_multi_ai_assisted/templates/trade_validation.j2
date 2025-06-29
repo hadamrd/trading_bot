@@ -1,0 +1,75 @@
+# TRADE SIGNAL VALIDATION REQUEST #{{ validation_id }}
+
+**Timestamp**: {{ timestamp }}
+**Symbol**: {{ request.symbol }} ({{ request.timeframe }})
+
+## 🤖 ALGORITHMIC SIGNAL
+- **Signal**: {{ request.signal_reason }}
+- **Entry Price**: ${{ "%.2f"|format(request.proposed_entry_price) }}
+- **Stop Loss**: ${{ "%.2f"|format(request.proposed_stop_loss) }} ({{ "%.2f"|format(((request.proposed_stop_loss / request.proposed_entry_price) - 1) * 100) }}%)
+- **Position Size**: ${{ "%.2f"|format(request.proposed_position_size) }}
+- **Algorithm Confidence**: {{ "%.1f"|format(request.strategy_confidence * 100) }}%
+
+## 📊 CURRENT MARKET CONTEXT
+
+### Price Action
+- **Current Price**: ${{ "{:,.2f}"|format(request.context.current_price) }}
+- **1h Change**: {{ "%.2f"|format(request.context.price_change_1h * 100) }}%
+{% if request.context.price_change_24h != 0 -%}
+- **24h Change**: {{ "%.2f"|format(request.context.price_change_24h * 100) }}%
+{% endif %}
+
+### Technical Indicators
+- **RSI**: {{ "%.1f"|format(request.context.rsi_level) }} {% if request.context.rsi_level < 30 %}(OVERSOLD){% elif request.context.rsi_level > 70 %}(OVERBOUGHT){% else %}(NEUTRAL){% endif %}
+- **Volume**: {{ "%.1f"|format(request.context.volume_vs_average) }}x average {% if request.context.volume_vs_average > 2.0 %}(HIGH){% elif request.context.volume_vs_average < 0.8 %}(LOW){% else %}(NORMAL){% endif %}
+- **Volatility**: {{ "%.0f"|format(request.context.volatility_percentile * 100) }}th percentile {% if request.context.volatility_percentile > 0.8 %}(EXTREME){% elif request.context.volatility_percentile > 0.6 %}(HIGH){% elif request.context.volatility_percentile < 0.3 %}(LOW){% else %}(NORMAL){% endif %}
+
+### Market Regime
+- **Detected Regime**: {{ request.context.detected_regime.upper() }}
+- **Volatility Mood**: {{ request.context.volatility_mood.upper() }}
+
+### Key Technical Levels
+- **Support**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.support) }}
+- **Resistance**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.resistance) }}
+- **Recent High**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.recent_high) }}
+- **Recent Low**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.recent_low) }}
+- **Pivot Point**: ${{ "{:,.2f}"|format(request.context.key_technical_levels.pivot) }}
+
+## ⏰ TIMING CONTEXT
+- **Market Session**: {{ request.context.market_hours.title() }}
+- **Day**: {{ request.context.day_of_week }}
+
+## 📈 RECENT SIMILAR TRADES
+{% if request.recent_similar_trades %}
+{% for trade in request.recent_similar_trades %}
+- **{{ trade.signal }}**: {{ trade.outcome }} ({{ "%.1f"|format(trade.return_pct) }}% return, {{ trade.duration_min }}min)
+{% endfor %}
+{% else %}
+- No recent similar trades in history
+{% endif %}
+
+## 💼 PORTFOLIO CONTEXT
+- **Current Exposure**: {{ "%.1f"|format(request.current_portfolio_exposure * 100) }}%
+- **Risk per Trade**: {{ "%.2f"|format(((request.proposed_entry_price - request.proposed_stop_loss) / request.proposed_entry_price) * 100) }}% of position
+
+---
+
+## 🎯 VALIDATION REQUEST
+
+Analyze this trading signal with your expertise and provide a structured assessment:
+
+### Key Questions to Consider:
+1. **Technical Setup**: Are the indicators properly aligned for this signal type?
+2. **Market Timing**: Is this good timing given current market conditions?
+3. **Risk/Reward**: Does the setup offer favorable risk/reward potential?
+4. **Context Clues**: What might the algorithm be missing?
+5. **Execution**: Any improvements to entry, stops, or position size?
+
+### Focus Areas:
+- **Signal Quality**: How strong is the technical setup?
+- **Market Environment**: Does current regime favor this type of trade?
+- **Risk Factors**: What are the main ways this trade could fail?
+- **Timing**: Is this the right moment, or should we wait?
+- **Improvements**: Any modifications that would improve the trade?
+
+Provide your assessment using the structured format with specific, actionable insights.
